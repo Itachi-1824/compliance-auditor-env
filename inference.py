@@ -272,7 +272,7 @@ async def run_episode(
                 final_score = max(0.01, min(0.99, reward))
                 success = "true" if final_score >= 0.3 else "false"
                 rewards_str = ",".join(f"{r:.2f}" for r in step_rewards)
-                print(f"[END] success={success} steps={step_count} score={final_score:.2f} rewards={rewards_str}", flush=True)
+                print(f"[END] success={success} steps={step_count} score={final_score:.3f} rewards={rewards_str}", flush=True)
                 return {"reward": final_score, "steps": step_count}
 
             # Add result to history
@@ -312,7 +312,7 @@ async def run_episode(
         reward = 0.01
     success = "true" if reward >= 0.3 else "false"
     rewards_str = ",".join(f"{r:.2f}" for r in step_rewards)
-    print(f"[END] success={success} steps={step_count} score={reward:.2f} rewards={rewards_str}", flush=True)
+    print(f"[END] success={success} steps={step_count} score={reward:.3f} rewards={rewards_str}", flush=True)
     return {"reward": reward, "error": "max_steps_auto_graded", "steps": step_count}
 
 

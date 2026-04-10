@@ -31,7 +31,7 @@ MODEL_NAME = os.getenv("MODEL_NAME", "google/gemma-4-31b-it")
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-MAX_STEPS = 30
+MAX_STEPS = 50
 CONTEXT_CHAR_LIMIT = 100000
 
 SYSTEM_PROMPT = """You are an EU AI Act compliance auditor. Complete your audit in UNDER 25 tool calls.

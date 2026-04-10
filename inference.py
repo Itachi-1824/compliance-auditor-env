@@ -287,8 +287,23 @@ async def run_episode(
         else:
             continue
 
-    print(f"[END] task={task_name} score=0.01 steps={MAX_STEPS}", flush=True)
-    return {"reward": 0.01, "error": "max_steps", "steps": MAX_STEPS}
+    # Max steps reached — force verify to get partial credit
+    try:
+        force_result = await env.call_tool("verify_compliance",
+            risk_classification="unknown",
+            overall_assessment="Max steps reached — auto-submit",
+            key_findings_summary="Partial investigation")
+        if isinstance(force_result, str):
+            parsed = json.loads(force_result)
+            reward = max(0.01, min(0.99, float(parsed.get("reward", 0.01))))
+        elif hasattr(env, "_last_reward") and env._last_reward:
+            reward = max(0.01, min(0.99, env._last_reward))
+        else:
+            reward = 0.01
+    except Exception:
+        reward = 0.01
+    print(f"[END] task={task_name} score={reward:.2f} steps={step_count}", flush=True)
+    return {"reward": reward, "error": "max_steps_auto_graded", "steps": step_count}
 
 
 # ---------------------------------------------------------------------------

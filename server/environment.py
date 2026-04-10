@@ -256,18 +256,33 @@ class ComplianceAuditorEnvironment(Environment):
     # ------------------------------------------------------------------
 
     def _use_query(self) -> Optional[str]:
-        """Consume a query from the budget. Returns error string if exhausted."""
+        """Consume a query from the budget. Auto-grades if exhausted."""
         self._queries_used += 1
         self._step_count += 1
         if self._queries_used > QUERY_BUDGET:
-            self._done = True
-            self._reward = safe_reward(0.0)
-            return json.dumps({
-                "error": "Query budget exhausted",
-                "done": True,
-                "reward": self._reward,
-            })
+            # Auto-grade whatever the agent has done so far
+            return self._auto_verify("Query budget exhausted — auto-grading partial work")
         return None
+
+    def _auto_verify(self, reason: str) -> str:
+        """Auto-grade the agent's work when episode ends without verify_compliance."""
+        self._done = True
+        breakdown = compute_reward(
+            scenario=self._scenario,
+            classification_submitted=self._classification_submitted,
+            findings_submitted=self._findings_submitted,
+            remediation_submitted=self._remediation_submitted,
+            tool_sequence=self._tool_sequence,
+            steps_taken=self._queries_used,
+        )
+        self._reward = breakdown.total()
+        return json.dumps({
+            "done": True,
+            "reward": self._reward,
+            "reason": reason,
+            "reward_breakdown": breakdown.to_dict(),
+            "note": "Auto-graded partial work. Call verify_compliance explicitly for full credit.",
+        }, indent=2)
 
     def _advance_state(self, tool_name: str) -> str:
         """Try to advance the state graph. Returns outcome description."""

@@ -201,103 +201,93 @@ async def api_close(req: CloseRequest):
 
 _gradio_mounted = False
 
+# Color system: Deep charcoal + warm gold (authority/prestige/trust)
+# NO neon, NO AI-typical cyan/purple
+_BG = "#09090B"          # base background
+_CARD = "#18181B"        # card surface
+_BORDER = "#27272A"      # borders
+_TEXT = "#F8FAFC"        # primary text
+_MUTED = "#94A3B8"       # secondary text (slate)
+_GOLD = "#C9A84C"        # accent: authority, prestige
+_EMERALD = "#10B981"     # success/easy
+_AMBER = "#F59E0B"       # warning/medium
+_ROSE = "#F43F5E"        # critical/hard
+
 try:
     import gradio as gr
 
-    def _build_hero_html():
-        scenarios_count = len(SCENARIO_LIST)
-        tools_count = 11  # 10 tools + verify
-        tiers = len(DIFFICULTY_TIERS)
+    def _hero():
         return f"""
-        <div style="background:linear-gradient(135deg,#0f0f23 0%,#1a1a3e 50%,#0f0f23 100%);padding:40px;border-radius:16px;margin-bottom:24px;border:1px solid #2a2a5a;">
-            <h1 style="color:#00d4aa;font-size:2.2em;margin:0 0 8px 0;font-family:'Inter',sans-serif;">EU AI Act Compliance Auditor</h1>
-            <p style="color:#8888bb;font-size:1.1em;margin:0 0 24px 0;">
-                An MCP-based environment where LLM agents audit AI systems for EU AI Act compliance —
-                from risk classification to finding identification to remediation planning.
-                Parameter randomization on every reset prevents memorization.
+        <div style="background:{_CARD};padding:48px 40px;border-radius:12px;margin-bottom:28px;border:1px solid {_BORDER};">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+                <div style="width:8px;height:36px;background:{_GOLD};border-radius:4px;"></div>
+                <h1 style="color:{_TEXT};font-size:2em;margin:0;font-weight:700;letter-spacing:-0.02em;">EU AI Act Compliance Auditor</h1>
+            </div>
+            <p style="color:{_MUTED};font-size:1.05em;margin:8px 0 32px 20px;line-height:1.6;max-width:720px;">
+                An MCP-based environment where LLM agents audit AI systems for EU AI Act compliance.
+                8 scenarios from chatbot transparency to prohibited social scoring.
+                Parameter randomization prevents memorization.
             </p>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
-                <div style="background:#1a1a3e;padding:16px;border-radius:12px;text-align:center;border:1px solid #2a2a5a;">
-                    <div style="color:#00d4aa;font-size:2em;font-weight:bold;">{scenarios_count}</div>
-                    <div style="color:#8888bb;font-size:0.85em;">SCENARIOS</div>
-                </div>
-                <div style="background:#1a1a3e;padding:16px;border-radius:12px;text-align:center;border:1px solid #2a2a5a;">
-                    <div style="color:#00d4aa;font-size:2em;font-weight:bold;">{tools_count}</div>
-                    <div style="color:#8888bb;font-size:0.85em;">MCP TOOLS</div>
-                </div>
-                <div style="background:#1a1a3e;padding:16px;border-radius:12px;text-align:center;border:1px solid #2a2a5a;">
-                    <div style="color:#00d4aa;font-size:2em;font-weight:bold;">6</div>
-                    <div style="color:#8888bb;font-size:0.85em;">REWARD COMPS</div>
-                </div>
-                <div style="background:#1a1a3e;padding:16px;border-radius:12px;text-align:center;border:1px solid #2a2a5a;">
-                    <div style="color:#00d4aa;font-size:2em;font-weight:bold;">{tiers}</div>
-                    <div style="color:#8888bb;font-size:0.85em;">DIFFICULTY TIERS</div>
-                </div>
-                <div style="background:#1a1a3e;padding:16px;border-radius:12px;text-align:center;border:1px solid #2a2a5a;">
-                    <div style="color:#00d4aa;font-size:2em;font-weight:bold;">Aug 2026</div>
-                    <div style="color:#8888bb;font-size:0.85em;">EU DEADLINE</div>
-                </div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">
+                {"".join(f'''<div style="background:{_BG};padding:20px 16px;border-radius:10px;text-align:center;border:1px solid {_BORDER};">
+                    <div style="color:{_GOLD};font-size:1.8em;font-weight:700;">{v}</div>
+                    <div style="color:{_MUTED};font-size:0.78em;letter-spacing:0.05em;margin-top:4px;">{k}</div>
+                </div>''' for k, v in [("SCENARIOS", 8), ("MCP TOOLS", 11), ("REWARD COMPS", 6), ("TIERS", 3), ("EU DEADLINE", "Aug '26")])}
             </div>
-        </div>
-        """
+        </div>"""
 
-    def _build_uniqueness_html():
+    def _design_cards():
         cards = [
-            ("Real regulatory scenarios", "Scenarios based on actual EU AI Act articles — prohibited social scoring, high-risk hiring AI, deepfake compliance, medical device audits. Not toy problems."),
-            ("Full audit workflow", "10 MCP tools mirror a real compliance auditor's toolkit: classify, review documentation, audit data, verify oversight, check transparency, assess risk management."),
-            ("State-graph audit process", "Each scenario is a directed graph with progress/no_effect/worsened transitions. Partial credit via BFS depth. Wrong audit steps waste budget."),
-            ("6-component reward", "Classification accuracy, finding completeness, finding precision, remediation quality, methodology adherence, and efficiency. Anti-exploit: no reward gaming."),
-            ("Parameter randomization", "Company names, deployment dates, regions, and system versions re-rolled on every reset. Agents must learn the AUDIT PROCESS, not memorize answers."),
-            ("Timely: Aug 2026 deadline", "EU AI Act enforcement begins August 2, 2026. Every company deploying AI in Europe needs compliance auditing. This environment trains agents for a real, urgent need."),
+            ("Real Regulatory Scenarios", "Scenarios drawn from actual EU AI Act articles: prohibited social scoring (Art. 5), high-risk hiring (Annex III), deepfake transparency (Art. 50), medical device audits. Based on real compliance gaps companies face today."),
+            ("Full Audit Toolkit", "11 MCP tools mirror a real compliance auditor's workflow: system overview, risk classification, documentation review, bias audit, oversight verification, transparency check, risk assessment, logging verification."),
+            ("State-Graph Audit Process", "Each scenario is a directed graph with progress, no-effect, and worsened transitions. Partial credit computed via BFS depth along the optimal path. Wrong audit steps waste your query budget."),
+            ("6-Component Reward", "Classification accuracy (20%), finding completeness (25%), finding precision (15%), remediation quality (15%), methodology adherence (15%), efficiency (10%). Designed to resist reward hacking."),
+            ("Parameter Randomization", "Company names, deployment dates, regions, and system versions are re-rolled on every reset. Agents must learn the audit process, not memorize specific answers."),
+            ("Enforcement: 113 Days Away", "EU AI Act enforcement begins August 2, 2026. Fines up to EUR 35M or 7% of global revenue. Every company deploying AI in Europe needs automated compliance auditing. This environment fills that gap."),
         ]
-        html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">'
+        html = f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">'
         for title, desc in cards:
-            html += f"""
-            <div style="background:#1a1a3e;padding:20px;border-radius:12px;border:1px solid #2a2a5a;">
-                <h3 style="color:#00d4aa;margin:0 0 8px 0;font-size:1.05em;">{title}</h3>
-                <p style="color:#8888bb;margin:0;font-size:0.9em;line-height:1.5;">{desc}</p>
-            </div>
-            """
-        html += "</div>"
-        return html
+            html += f'''<div style="background:{_CARD};padding:24px;border-radius:10px;border:1px solid {_BORDER};">
+                <h3 style="color:{_TEXT};margin:0 0 10px 0;font-size:1em;font-weight:600;">{title}</h3>
+                <p style="color:{_MUTED};margin:0;font-size:0.88em;line-height:1.6;">{desc}</p>
+            </div>'''
+        return html + "</div>"
 
-    def _build_scenarios_html():
+    def _scenarios_html():
+        diff_colors = {"easy": _EMERALD, "medium": _AMBER, "hard": _ROSE}
         html = ""
         for s in SCENARIO_LIST:
-            diff_color = {"easy": "#00d4aa", "medium": "#ffaa00", "hard": "#ff4444"}
-            color = diff_color.get(s["difficulty"], "#8888bb")
-            html += f"""
-            <div style="background:#1a1a3e;padding:16px;border-radius:12px;margin-bottom:12px;border-left:4px solid {color};border:1px solid #2a2a5a;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="color:#e0e0ff;margin:0;font-size:1.05em;">{s['title']}</h3>
-                    <span style="background:{color}22;color:{color};padding:4px 12px;border-radius:8px;font-size:0.8em;font-weight:bold;">{s['difficulty'].upper()}</span>
+            c = diff_colors.get(s["difficulty"], _MUTED)
+            html += f'''<div style="background:{_CARD};padding:18px 20px;border-radius:10px;margin-bottom:10px;border-left:3px solid {c};border:1px solid {_BORDER};display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="color:{_TEXT};font-size:0.98em;font-weight:600;">{s["title"]}</div>
+                    <div style="color:{_MUTED};font-size:0.8em;margin-top:3px;font-family:monospace;">{s["id"]}</div>
                 </div>
-                <p style="color:#8888bb;margin:6px 0 0 0;font-size:0.85em;">ID: {s['id']}</p>
-            </div>
-            """
+                <span style="background:{c}18;color:{c};padding:4px 14px;border-radius:6px;font-size:0.75em;font-weight:700;letter-spacing:0.04em;">{s["difficulty"].upper()}</span>
+            </div>'''
         return html
 
-    _css = """
-    .gradio-container { background: #0a0a0a !important; }
-    .tab-nav button { color: #8888bb !important; background: transparent !important; border: none !important; }
-    .tab-nav button.selected { color: #00d4aa !important; border-bottom: 2px solid #00d4aa !important; }
-    """
-
     with gr.Blocks(title="EU AI Act Compliance Auditor") as landing_app:
+        gr.HTML(f'<style>.gradio-container{{background:{_BG}!important;}} .tab-nav button{{color:{_MUTED}!important;background:transparent!important;border:none!important;font-weight:500;}} .tab-nav button.selected{{color:{_GOLD}!important;border-bottom:2px solid {_GOLD}!important;}}</style>')
         with gr.Tabs():
             with gr.Tab("Overview"):
-                gr.HTML(_build_hero_html())
-                gr.HTML("<h2 style='color:#e0e0ff;margin-bottom:12px;'>What makes this unique</h2>")
-                gr.HTML(_build_uniqueness_html())
+                gr.HTML(_hero())
+                gr.HTML(f"<h2 style='color:{_TEXT};margin-bottom:14px;font-weight:600;'>Design Decisions</h2>")
+                gr.HTML(_design_cards())
+                gr.HTML(f"""<div style="background:{_CARD};padding:24px;border-radius:10px;border:1px solid {_BORDER};margin-top:8px;">
+                    <p style="color:{_MUTED};font-size:0.9em;margin:0;line-height:1.7;">
+                        <strong style="color:{_TEXT};">compliance_auditor_env</strong> &middot; 6-component reward &middot; 8 scenarios &middot;
+                        11 tools &middot; state-graph audit &middot; parameter randomization &middot; deterministic grading
+                    </p>
+                </div>""")
 
             with gr.Tab("Scenarios"):
-                gr.HTML("<h2 style='color:#e0e0ff;margin-bottom:12px;'>8 Compliance Audit Scenarios</h2>")
-                gr.HTML(_build_scenarios_html())
+                gr.HTML(f"<h2 style='color:{_TEXT};margin-bottom:14px;font-weight:600;'>8 Compliance Audit Scenarios</h2>")
+                gr.HTML(_scenarios_html())
 
             with gr.Tab("Playground"):
-                gr.HTML("<h2 style='color:#e0e0ff;margin-bottom:12px;'>Interactive Playground</h2>")
-                gr.HTML("<p style='color:#8888bb;'>Click Reset to start a new audit session, then use the tool dropdown to call audit tools.</p>")
-
+                gr.HTML(f"<h2 style='color:{_TEXT};margin-bottom:8px;font-weight:600;'>Interactive Audit</h2>")
+                gr.HTML(f"<p style='color:{_MUTED};margin-bottom:16px;'>Reset to start a session, then call audit tools sequentially.</p>")
                 session_state = gr.State(value=None)
                 with gr.Row():
                     diff_dropdown = gr.Dropdown(choices=["easy", "medium", "hard"], value="easy", label="Difficulty")
@@ -327,14 +317,14 @@ try:
                     with _sessions_lock:
                         env = _sessions.get(sid)
                     if not env:
-                        return sid, {"error": "Session expired. Click Reset."}
+                        return sid, {"error": "Session expired"}
                     fn = env._tool_fns.get(tool_name)
                     if not fn:
                         return sid, {"error": f"Unknown tool: {tool_name}"}
                     try:
                         kwargs = json.loads(args_str) if args_str.strip() else {}
                     except json.JSONDecodeError:
-                        return sid, {"error": "Invalid JSON in arguments"}
+                        return sid, {"error": "Invalid JSON"}
                     try:
                         result = fn(**kwargs)
                         return sid, json.loads(result) if isinstance(result, str) else result
@@ -345,17 +335,17 @@ try:
                 call_btn.click(pg_call, [session_state, tool_dropdown, args_input], [session_state, output_box])
 
             with gr.Tab("Try It"):
-                gr.HTML("""
-                <div style="background:#1a1a3e;padding:24px;border-radius:12px;border:1px solid #2a2a5a;">
-                    <h2 style="color:#e0e0ff;margin-top:0;">Run the Baseline Agent</h2>
-                    <pre style="background:#0a0a1a;padding:16px;border-radius:8px;color:#00d4aa;overflow-x:auto;"><code>export API_BASE_URL="https://integrate.api.nvidia.com/v1"
+                gr.HTML(f"""<div style="background:{_CARD};padding:28px;border-radius:10px;border:1px solid {_BORDER};">
+                    <h2 style="color:{_TEXT};margin-top:0;font-weight:600;">Run the Baseline Agent</h2>
+                    <p style="color:{_MUTED};margin-bottom:16px;">Supports NVIDIA NIM and HuggingFace Inference API.</p>
+                    <pre style="background:{_BG};padding:18px;border-radius:8px;color:{_GOLD};overflow-x:auto;border:1px solid {_BORDER};font-size:0.9em;line-height:1.7;"><code>export API_BASE_URL="https://integrate.api.nvidia.com/v1"
 export MODEL_NAME="google/gemma-4-31b-it"
 export HF_TOKEN="your-api-key"
 python inference.py --space https://Itachi1824-compliance-auditor-env.hf.space</code></pre>
-                </div>
-                """)
+                </div>""")
 
         gr.mount_gradio_app(app, landing_app, path="/")
+        gr.mount_gradio_app(app, landing_app, path="/web")
         _gradio_mounted = True
 
 except Exception as e:

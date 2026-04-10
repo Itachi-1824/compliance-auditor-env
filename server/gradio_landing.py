@@ -279,19 +279,52 @@ def _scenarios_html() -> str:
     return html
 
 
+def _load_live_scores() -> Dict:
+    """Try to load real benchmark scores from outputs/leaderboard/scores.json."""
+    import os
+    from pathlib import Path
+    scores_path = Path(__file__).resolve().parent.parent / "outputs" / "leaderboard" / "scores.json"
+    if scores_path.exists():
+        try:
+            with open(scores_path) as f:
+                data = json.load(f)
+            # Convert from benchmark format to leaderboard format
+            models = []
+            scores = {}
+            for entry in data:
+                model_short = entry["model"].split("/")[-1][:20]
+                if model_short not in models:
+                    models.append(model_short)
+                for sid, score_val in entry.get("scores", {}).items():
+                    if sid not in scores:
+                        scores[sid] = {}
+                    s = score_val if isinstance(score_val, (int, float)) else score_val.get("score", 0.01)
+                    scores[sid][model_short] = s
+            return models, scores
+        except Exception:
+            pass
+    return None, None
+
+
 def _leaderboard_html() -> str:
-    # Placeholder scores (will be filled with real baseline data)
-    models = ["gemma-4-31b", "nemotron-3-super", "qwen3.5-122b"]
-    scores = {
-        "easy_chatbot_transparency_001":     {"gemma-4-31b": 0.68, "nemotron-3-super": 0.52, "qwen3.5-122b": 0.58},
-        "easy_recommendation_minimal_001":   {"gemma-4-31b": 0.72, "nemotron-3-super": 0.48, "qwen3.5-122b": 0.55},
-        "medium_hiring_bias_001":            {"gemma-4-31b": 0.51, "nemotron-3-super": 0.28, "qwen3.5-122b": 0.38},
-        "medium_credit_scoring_001":         {"gemma-4-31b": 0.45, "nemotron-3-super": 0.22, "qwen3.5-122b": 0.32},
-        "medium_medical_triage_001":         {"gemma-4-31b": 0.42, "nemotron-3-super": 0.25, "qwen3.5-122b": 0.30},
-        "hard_social_scoring_prohibited_001":{"gemma-4-31b": 0.35, "nemotron-3-super": 0.12, "qwen3.5-122b": 0.18},
-        "hard_deepfake_generation_001":      {"gemma-4-31b": 0.30, "nemotron-3-super": 0.10, "qwen3.5-122b": 0.14},
-        "hard_multi_system_corporate_001":   {"gemma-4-31b": 0.25, "nemotron-3-super": 0.08, "qwen3.5-122b": 0.10},
-    }
+    # Try loading live scores first
+    live_models, live_scores = _load_live_scores()
+    if live_models and live_scores:
+        models = live_models[:8]  # cap at 8 for display
+        scores = live_scores
+    else:
+        # Fallback placeholder scores
+        models = ["gemma-4-31b", "nemotron-3-super", "qwen3.5-122b"]
+        scores = {
+            "easy_chatbot_transparency_001":     {"gemma-4-31b": 0.68, "nemotron-3-super": 0.52, "qwen3.5-122b": 0.58},
+            "easy_recommendation_minimal_001":   {"gemma-4-31b": 0.72, "nemotron-3-super": 0.48, "qwen3.5-122b": 0.55},
+            "medium_hiring_bias_001":            {"gemma-4-31b": 0.51, "nemotron-3-super": 0.28, "qwen3.5-122b": 0.38},
+            "medium_credit_scoring_001":         {"gemma-4-31b": 0.45, "nemotron-3-super": 0.22, "qwen3.5-122b": 0.32},
+            "medium_medical_triage_001":         {"gemma-4-31b": 0.42, "nemotron-3-super": 0.25, "qwen3.5-122b": 0.30},
+            "hard_social_scoring_prohibited_001":{"gemma-4-31b": 0.35, "nemotron-3-super": 0.12, "qwen3.5-122b": 0.18},
+            "hard_deepfake_generation_001":      {"gemma-4-31b": 0.30, "nemotron-3-super": 0.10, "qwen3.5-122b": 0.14},
+            "hard_multi_system_corporate_001":   {"gemma-4-31b": 0.25, "nemotron-3-super": 0.08, "qwen3.5-122b": 0.10},
+        }
     scenario_tier = {s["id"]: s["difficulty"] for s in SCENARIO_LIST}
 
     header = "<tr><th>SCENARIO</th><th>TIER</th>" + "".join(f"<th style='text-align:center;'>{m.upper()}</th>" for m in models) + "</tr>"

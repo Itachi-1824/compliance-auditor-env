@@ -1,0 +1,11 @@
+[
+  {
+    "model": "qwen/qwen3.5-122b-a10b",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.4571153846153846,
+      "medium_hiring_bias_001": 0.01,
+      "hard_social_scoring_prohibited_001": 0.01
+    },
+    "overall": 0.159
+  }
+]

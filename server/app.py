@@ -344,8 +344,7 @@ export HF_TOKEN="your-api-key"
 python inference.py --space https://Itachi1824-compliance-auditor-env.hf.space</code></pre>
                 </div>""")
 
-        gr.mount_gradio_app(app, landing_app, path="/")
-        gr.mount_gradio_app(app, landing_app, path="/web")
+        gr.mount_gradio_app(app, landing_app, path="/dashboard")
         _gradio_mounted = True
 
 except Exception as e:

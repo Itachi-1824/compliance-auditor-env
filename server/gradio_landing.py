@@ -284,7 +284,7 @@ def _hero_html() -> str:
             An MCP environment where LLM agents audit AI systems for EU AI Act compliance.
             Tools return investigation-grade regulatory documents &mdash; statistical tables, documentation inventories,
             operational procedures &mdash; that require genuine analysis to identify violations.
-            No pre-digested verdicts. The agent must reason about evidence across 8 scenarios spanning
+            No pre-digested verdicts. The agent must reason about evidence across 9 scenarios spanning
             prohibited social scoring, high-risk hiring bias, medical device compliance, and multi-system corporate audits.
         </p>
         <div class="stats">{stat_boxes}</div>
@@ -654,6 +654,42 @@ python inference.py --space https://Itachi1824-compliance-auditor-env.hf.space</
                 <p style="color:{MUTED};font-size:11px;margin:4px 0 0;">End session, cleanup</p>
             </div>
         </div>
+    </div>
+    <div class="arch-box" style="margin-top:16px;">
+        <h3 style="color:{GOLD};">How It Works</h3>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:10px;">
+            <div style="background:{BG};padding:14px;border-radius:6px;border:1px solid {BORDER};text-align:center;">
+                <div style="color:{EMERALD};font-size:24px;margin-bottom:6px;">1</div>
+                <div style="color:{TEXT};font-size:12px;font-weight:600;">Reset</div>
+                <p style="color:{MUTED};font-size:11px;margin:4px 0 0;">Pick a scenario, get initial observation with system description</p>
+            </div>
+            <div style="background:{BG};padding:14px;border-radius:6px;border:1px solid {BORDER};text-align:center;">
+                <div style="color:{AMBER};font-size:24px;margin-bottom:6px;">2</div>
+                <div style="color:{TEXT};font-size:12px;font-weight:600;">Investigate</div>
+                <p style="color:{MUTED};font-size:11px;margin:4px 0 0;">Call audit tools to read regulatory documents and analyze evidence</p>
+            </div>
+            <div style="background:{BG};padding:14px;border-radius:6px;border:1px solid {BORDER};text-align:center;">
+                <div style="color:{ROSE};font-size:24px;margin-bottom:6px;">3</div>
+                <div style="color:{TEXT};font-size:12px;font-weight:600;">Submit</div>
+                <p style="color:{MUTED};font-size:11px;margin:4px 0 0;">Submit findings and recommend remediation for each violation</p>
+            </div>
+            <div style="background:{BG};padding:14px;border-radius:6px;border:1px solid {BORDER};text-align:center;">
+                <div style="color:{GOLD};font-size:24px;margin-bottom:6px;">4</div>
+                <div style="color:{TEXT};font-size:12px;font-weight:600;">Verify</div>
+                <p style="color:{MUTED};font-size:11px;margin:4px 0 0;">Call verify_compliance to get 6-component reward score</p>
+            </div>
+        </div>
+    </div>
+    <div class="arch-box" style="margin-top:16px;">
+        <h3 style="color:{GOLD};">Quick Test with curl</h3>
+        <div class="code-block" style="font-size:12px;">curl -X POST https://Itachi1824-compliance-auditor-env.hf.space/api/reset \\
+  -H "Content-Type: application/json" \\
+  -d '{{"difficulty": "medium", "scenario_id": "medium_hiring_bias_001"}}'
+
+# Use the session_id from the response:
+curl -X POST https://Itachi1824-compliance-auditor-env.hf.space/api/call_tool \\
+  -H "Content-Type: application/json" \\
+  -d '{{"session_id": "YOUR_SESSION_ID", "tool_name": "get_system_overview"}}'</div>
     </div>"""
 
 
@@ -800,7 +836,7 @@ def create_landing_app() -> gr.Blocks:
 
             # ── TAB 2: Scenarios ──
             with gr.Tab("Scenarios"):
-                gr.HTML(f"<h2>8 compliance audit scenarios &middot; 3 tiers</h2>")
+                gr.HTML(f"<h2>9 compliance audit scenarios &middot; 3 tiers</h2>")
                 gr.HTML(f'<p style="color:{MUTED};margin-bottom:16px;">Each scenario is a directed graph. Ground truth findings and required remediations shown below.</p>')
                 gr.HTML(_scenarios_html())
 
@@ -831,7 +867,7 @@ def create_landing_app() -> gr.Blocks:
 
                 # ── Status dashboard ──
                 pg_status = gr.HTML(
-                    value=f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;text-align:center;color:{MUTED};">Click Reset to start an episode</div>'
+                    value=f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"><div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">STATUS</div></div><div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">QUERIES</div></div><div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">FINDINGS</div></div><div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">REMEDIATIONS</div></div><div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">REWARD</div></div></div>'
                 )
 
                 # ── Document viewer ──

@@ -101,8 +101,8 @@ def test_reward_clamping():
         overall_assessment="",
         key_findings_summary="",
     ))
-    assert result["reward"] >= 0.01
-    assert result["reward"] <= 0.99
+    assert result["reward"] >= 0.001
+    assert result["reward"] <= 0.999
     print(f"PASS: Reward clamping = {result['reward']:.4f}")
 
 

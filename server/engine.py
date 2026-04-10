@@ -190,7 +190,7 @@ class AuditScenario:
 
 def safe_reward(score: float) -> float:
     """Clamp reward to (0, 1) exclusive — required by OpenEnv validator."""
-    return max(0.01, min(0.99, score))
+    return max(0.001, min(0.999, score))
 
 
 @dataclass

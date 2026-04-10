@@ -28,8 +28,10 @@ from openai import OpenAI
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://integrate.api.nvidia.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "google/gemma-4-31b-it")
-HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+# Evaluator may set OPENENV_BASE_URL to point at the running HF Space
+ENV_BASE_URL = os.getenv("OPENENV_BASE_URL") or os.getenv("ENV_URL") or os.getenv("ENV_BASE_URL")
 
 MAX_STEPS = 100
 CONTEXT_CHAR_LIMIT = 100000
@@ -227,7 +229,7 @@ async def run_episode(
                 if force_verify and ("tool_choice" in str(e).lower() or "function" in str(e).lower()):
                     create_kwargs["tool_choice"] = "auto"
                     continue
-                print(f"[DEBUG] LLM error: {str(e)[:100]}", flush=True)
+                print(f"[DEBUG] LLM error: {str(e)[:100]}", file=sys.stderr, flush=True)
                 break
 
         if response is None:
@@ -291,7 +293,7 @@ async def run_episode(
             print(f"[STEP] step={step_count} action={tool_name} reward={reward:.2f} done={'true' if done else 'false'} error=null", flush=True)
 
             if done:
-                final_score = max(0.01, min(0.99, reward))
+                final_score = max(0.001, min(0.999, reward))
                 success = "true" if final_score >= 0.3 else "false"
                 rewards_str = ",".join(f"{r:.2f}" for r in step_rewards)
                 print(f"[END] success={success} steps={step_count} score={final_score:.3f} rewards={rewards_str}", flush=True)
@@ -325,9 +327,9 @@ async def run_episode(
             key_findings_summary="See submitted findings above")
         if isinstance(force_result, str):
             parsed = json.loads(force_result)
-            reward = max(0.01, min(0.99, float(parsed.get("reward", 0.01))))
+            reward = max(0.001, min(0.999, float(parsed.get("reward", 0.01))))
         elif hasattr(env, "_last_reward") and env._last_reward:
-            reward = max(0.01, min(0.99, env._last_reward))
+            reward = max(0.001, min(0.999, env._last_reward))
         else:
             reward = 0.01
     except Exception:
@@ -365,8 +367,10 @@ async def async_main() -> None:
     model = args.model or MODEL_NAME
     llm_client = OpenAI(base_url=API_BASE_URL, api_key=api_key, timeout=60.0)
 
-    # Determine base URL
-    if args.space:
+    # Determine base URL (evaluator may set OPENENV_BASE_URL)
+    if ENV_BASE_URL:
+        base_url = ENV_BASE_URL
+    elif args.space:
         base_url = args.space
     else:
         base_url = "http://localhost:7860"
@@ -391,9 +395,9 @@ async def async_main() -> None:
             tools_raw = await discover_env.list_tools()
             tools = mcp_tools_to_openai(tools_raw)
 
-        print(f"[DEBUG] Mode: {'remote' if args.space else 'local'} | Model: {model}", flush=True)
-        print(f"[DEBUG] Tools: {[t['function']['name'] for t in tools]}", flush=True)
-        print(f"[DEBUG] Difficulties: {difficulties}", flush=True)
+        print(f"[DEBUG] Mode: {'remote' if args.space else 'local'} | Model: {model}", file=sys.stderr, flush=True)
+        print(f"[DEBUG] Tools: {[t['function']['name'] for t in tools]}", file=sys.stderr, flush=True)
+        print(f"[DEBUG] Difficulties: {difficulties}", file=sys.stderr, flush=True)
 
         all_results = {}
         for difficulty in difficulties:
@@ -413,10 +417,10 @@ async def async_main() -> None:
         print(f"\n{'='*60}", flush=True)
         print(f"BASELINE RESULTS — {model}", flush=True)
         for sid, r in all_results.items():
-            score = max(0.01, min(0.99, r.get("reward", 0)))
+            score = max(0.001, min(0.999, r.get("reward", 0)))
             print(f"  {sid}: {score:.4f} ({r.get('steps', 0)} steps)", flush=True)
         if all_results:
-            avg = sum(max(0.01, min(0.99, r.get("reward", 0))) for r in all_results.values()) / len(all_results)
+            avg = sum(max(0.001, min(0.999, r.get("reward", 0))) for r in all_results.values()) / len(all_results)
             print(f"  OVERALL: {avg:.4f}", flush=True)
 
     finally:

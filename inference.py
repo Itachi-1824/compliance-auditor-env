@@ -383,7 +383,7 @@ async def async_main() -> None:
                             result = await run_episode(ep_env, llm_client, model, tools, difficulty, sid)
                     except Exception as e:
                         print(f"[START] task={sid} env=compliance_auditor_env model={model}", flush=True)
-                        print(f"[END] task={sid} score=0.01 steps=0", flush=True)
+                        print(f"[END] success=false steps=0 score=0.010 rewards=", flush=True)
                         result = {"reward": 0.01, "error": str(e)[:100], "steps": 0}
                     all_results[sid] = result
 

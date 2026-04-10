@@ -19,7 +19,6 @@ Reward is computed from 6 components:
 
 from __future__ import annotations
 
-import hashlib
 import random
 from collections import deque
 from dataclasses import dataclass, field
@@ -316,12 +315,18 @@ def compute_reward(
         breakdown.methodology = 0.0
 
     # 6. Efficiency (10%) — steps vs optimal
+    # Anti-gaming: agent must take at least as many steps as optimal to get full efficiency
+    # Taking FEWER steps than optimal means skipping investigation → penalized
     optimal = scenario.graph.optimal_path_length()
     if optimal > 0 and steps_taken > 0:
-        ratio = optimal / steps_taken
-        breakdown.efficiency = min(ratio, 1.0)
+        if steps_taken < optimal:
+            # Took fewer steps than optimal = skipped investigation
+            breakdown.efficiency = steps_taken / optimal * 0.5  # penalty
+        else:
+            # Normal: efficiency decreases as steps increase beyond optimal
+            breakdown.efficiency = min(optimal / steps_taken, 1.0)
     else:
-        breakdown.efficiency = 0.5
+        breakdown.efficiency = 0.3
 
     return breakdown
 

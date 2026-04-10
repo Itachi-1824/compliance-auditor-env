@@ -1,0 +1,16 @@
+spec_version: 1
+name: compliance_auditor_env
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
+tasks:
+  - id: easy
+    name: "Easy — Chatbot & Recommendation compliance"
+    grader: server.engine.compute_reward
+  - id: medium
+    name: "Medium — Hiring AI, Credit Scoring, Medical Triage"
+    grader: server.engine.compute_reward
+  - id: hard
+    name: "Hard — Prohibited Systems, Deepfake, Multi-System Audit"
+    grader: server.engine.compute_reward

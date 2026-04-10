@@ -142,16 +142,9 @@ try:
     from server.gradio_landing import create_landing_app
 
     _landing = create_landing_app()
-    # Mount at both / and /web — HF Space iframe loads /web
-    app = gr.mount_gradio_app(app, _landing, path="/web")
-
-    # Redirect / to /web
-    from fastapi.responses import RedirectResponse
-    @app.get("/", include_in_schema=False)
-    def _redirect_root():
-        return RedirectResponse(url="/web")
-
-    print(f"[gradio_landing] mounted at /web — gradio {gr.__version__}", flush=True)
+    # Mount at / — exactly like Maverick98's working pattern
+    app = gr.mount_gradio_app(app, _landing, path="/")
+    print(f"[gradio_landing] mounted at / — gradio {gr.__version__}", flush=True)
 except Exception as e:
     import sys
     import traceback

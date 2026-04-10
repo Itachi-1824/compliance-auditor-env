@@ -199,6 +199,8 @@ async def api_close(req: CloseRequest):
 # Gradio Landing Page
 # ---------------------------------------------------------------------------
 
+_gradio_mounted = False
+
 try:
     import gradio as gr
 
@@ -281,7 +283,7 @@ try:
     .tab-nav button.selected { color: #00d4aa !important; border-bottom: 2px solid #00d4aa !important; }
     """
 
-    with gr.Blocks(css=_css, title="EU AI Act Compliance Auditor") as landing_app:
+    with gr.Blocks(title="EU AI Act Compliance Auditor") as landing_app:
         with gr.Tabs():
             with gr.Tab("Overview"):
                 gr.HTML(_build_hero_html())
@@ -354,10 +356,31 @@ python inference.py --space https://Itachi1824-compliance-auditor-env.hf.space</
                 """)
 
         gr.mount_gradio_app(app, landing_app, path="/")
+        _gradio_mounted = True
 
-except ImportError:
-    # Gradio not available — no custom UI
-    pass
+except Exception as e:
+    import traceback
+    print(f"[WARN] Gradio UI failed to mount: {e}", flush=True)
+    traceback.print_exc()
+
+# Fallback root handler if Gradio didn't mount
+if not _gradio_mounted:
+    from fastapi.responses import HTMLResponse
+
+    @app.get("/", response_class=HTMLResponse)
+    def root_fallback():
+        return """<!DOCTYPE html><html><head><title>EU AI Act Compliance Auditor</title></head>
+        <body style="background:#0a0a0a;color:#e0e0ff;font-family:sans-serif;padding:40px;">
+        <h1 style="color:#00d4aa;">EU AI Act Compliance Auditor</h1>
+        <p>MCP-based environment for auditing AI systems. 8 scenarios, 11 tools, 6-component reward.</p>
+        <h3>API Endpoints</h3>
+        <ul>
+        <li><code>GET /health</code> — Health check</li>
+        <li><code>GET /tasks</code> — List scenarios</li>
+        <li><code>POST /api/reset</code> — Start audit session</li>
+        <li><code>POST /api/call_tool</code> — Call an audit tool</li>
+        <li><code>POST /api/close</code> — End session</li>
+        </ul></body></html>"""
 
 
 # ---------------------------------------------------------------------------

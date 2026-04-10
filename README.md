@@ -77,6 +77,37 @@ env.reset(scenario_id="procedural_hard_12345")  # Seed 12345, hard difficulty
 
 Each generated scenario has proper ground truth findings, matching state graph, violation-specific documents, and is fully compatible with the 6-component reward function.
 
+## Action & Observation Spaces
+
+### Action (ComplianceAction)
+```python
+class ComplianceAction(Action):
+    tool_name: str    # Name of the audit tool to call
+    arguments: dict   # Tool arguments as JSON (e.g. {"risk_category": "high_risk"})
+```
+
+### Observation (ComplianceObservation)
+```python
+class ComplianceObservation(Observation):
+    done: bool          # Whether the episode is complete
+    reward: float       # Current step reward (terminal on verify_compliance)
+    metadata: dict      # Tool response content, audit context
+    queries_remaining: int
+```
+
+### State (ComplianceState)
+```python
+class ComplianceState(BaseModel):
+    episode_id: str
+    step_count: int
+    scenario_id: str
+    difficulty: str           # easy / medium / hard
+    queries_used: int
+    findings_count: int
+    compliance_verified: bool
+    current_reward: float
+```
+
 ## Tools
 
 ### Investigation

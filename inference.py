@@ -384,9 +384,9 @@ async def async_main() -> None:
     from client import ComplianceAuditorHTTP
     difficulties = [args.difficulty] if args.difficulty else ["easy", "medium", "hard"]
 
-    # Start local server if not using Space
+    # Start local server only when not connecting to a remote Space
     server_proc = None
-    if not args.space:
+    if not args.space and not ENV_BASE_URL:
         import subprocess
         server_proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "server.app:app", "--host", "127.0.0.1", "--port", "7860"],

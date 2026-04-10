@@ -322,7 +322,8 @@ class ComplianceAuditorEnvironment(Environment):
         """
         parts = []
         if self._classification_submitted:
-            parts.append(f"  Classification submitted: {self._classification_submitted.replace('_', ' ').title()}")
+            cls_display = self._classification_submitted.replace("_", " ").title()
+            parts.append(f"  Classification submitted: {cls_display}")
         if self._findings_submitted:
             parts.append(f"  Findings submitted: {len(self._findings_submitted)}")
             for i, f in enumerate(self._findings_submitted[-3:], 1):
@@ -403,25 +404,31 @@ class ComplianceAuditorEnvironment(Environment):
 
         s = self._scenario
         # Build investigation brief
+        sep = "=" * 60
+        category_claim = (
+            '"' + s.system_category.replace("_", " ").title() + '"'
+            if s.difficulty == "easy"
+            else "Not provided — to be determined by auditor"
+        )
+        queries_left = QUERY_BUDGET - self._queries_used
         brief = (
             f"COMPLIANCE AUDIT ASSIGNMENT\n"
-            f"{'=' * 60}\n"
+            f"{sep}\n"
             f"System:     {s.system_name} {s.get_param('version')}\n"
             f"Deployer:   {self._render_doc(s.deployer_info)}\n"
             f"Region:     {s.get_param('region')}\n"
             f"Users:      {s.get_param('user_count')}\n"
             f"Deployed:   {s.get_param('deployment_date')}\n"
-            f"{'=' * 60}\n\n"
+            f"{sep}\n\n"
             f"SYSTEM DESCRIPTION:\n"
             f"  {self._render_doc(s.system_description)}\n\n"
-            f"DEPLOYER'S CLAIMED RISK CATEGORY: "
-            f"{'\"' + s.system_category.replace('_', ' ').title() + '\"' if s.difficulty == 'easy' else 'Not provided — to be determined by auditor'}\n\n"
+            f"DEPLOYER'S CLAIMED RISK CATEGORY: {category_claim}\n\n"
             f"AUDIT SCOPE:\n"
             f"  Conduct a thorough compliance audit under the EU AI Act.\n"
             f"  Investigate documentation, training data, human oversight,\n"
             f"  transparency, risk management, and logging as applicable.\n"
             f"  Submit findings and remediation recommendations.\n\n"
-            f"  Tools available: {QUERY_BUDGET - self._queries_used} queries remaining."
+            f"  Tools available: {queries_left} queries remaining."
         )
         return json.dumps({
             "document_type": "System Overview & Audit Assignment",

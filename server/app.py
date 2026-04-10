@@ -48,24 +48,35 @@ _session_lock = asyncio.Lock()
 class GraderBody(BaseModel):
     task_id: str = "easy"
     episode_id: Optional[str] = None
+    seed: Optional[int] = None
     classification: str = ""
     findings: list = []
     remediation: list = []
+    tool_sequence: list = []
+    steps_taken: int = 10
 
 
 @app.post("/grader")
 async def grader_endpoint(body: GraderBody):
     """Grade a completed episode. Returns score in [0.001, 0.999]."""
-    from server.engine import compute_reward, safe_reward
+    from server.engine import compute_reward
     from scenarios.registry import get_scenario
-    sc = get_scenario(body.task_id if "_" in body.task_id else f"easy_chatbot_transparency_001")
+
+    # Resolve scenario — supports fixed IDs, difficulty tiers, and procedural
+    try:
+        sc = get_scenario(body.task_id, body.seed)
+    except ValueError:
+        # Fallback: treat task_id as difficulty tier, pick first scenario
+        tier_map = {"easy": "easy_chatbot_transparency_001", "medium": "medium_hiring_bias_001", "hard": "hard_social_scoring_prohibited_001"}
+        sc = get_scenario(tier_map.get(body.task_id, "easy_chatbot_transparency_001"), body.seed)
+
     breakdown = compute_reward(
         scenario=sc,
         classification_submitted=body.classification,
         findings_submitted=body.findings,
         remediation_submitted=body.remediation,
-        tool_sequence=[],
-        steps_taken=10,
+        tool_sequence=body.tool_sequence,
+        steps_taken=body.steps_taken,
     )
     return {"score": breakdown.total(), "breakdown": breakdown.to_dict()}
 

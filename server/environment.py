@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -215,6 +216,7 @@ class ComplianceAuditorEnvironment(Environment):
         self._findings_submitted = []
         self._remediation_submitted = []
         self._discovered_info = {}
+        self._tool_call_counts = {}
         self._max_progress_depth = 0
         self._harm_events = 0
         self._observation_after_investigation = 0
@@ -287,8 +289,6 @@ class ComplianceAuditorEnvironment(Environment):
         to ensure every episode is genuinely unique, not just parameter swaps.
         The violations remain detectable but exact numbers change.
         """
-        import re
-
         def _perturb_pct(match: re.Match) -> str:
             """Perturb a percentage value by +-2 percentage points."""
             val = float(match.group(1))
@@ -446,15 +446,14 @@ class ComplianceAuditorEnvironment(Environment):
 
         if not self._discovered_info.get("overview"):
             self._harm_events += 1
-            outcome = self._advance_state("classify_system")
+            self._advance_state("classify_system")
             return json.dumps({
                 "warning": "Classification submitted before gathering system overview. This may reduce your methodology score.",
                 "classification_recorded": risk_category,
                 "queries_remaining": QUERY_BUDGET - self._queries_used,
             })
 
-        outcome = self._advance_state("classify_system")
-        correct = self._classification_submitted == self._scenario.correct_classification.lower()
+        self._advance_state("classify_system")
         return json.dumps({
             "classification_recorded": risk_category,
             "note": "Classification recorded. Continue your audit to verify.",
@@ -611,7 +610,7 @@ class ComplianceAuditorEnvironment(Environment):
         if budget_err:
             return budget_err
         self._findings_submitted.append(finding.lower().strip())
-        outcome = self._advance_state("submit_finding")
+        self._advance_state("submit_finding")
 
         # Evidence chain validation — check if agent investigated relevant areas
         evidence_warnings = []
@@ -671,7 +670,7 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._remediation_submitted.append(remediation.lower().strip())
         self._remediation_count += 1
-        outcome = self._advance_state("recommend_fix")
+        self._advance_state("recommend_fix")
         return json.dumps({
             "remediation_recorded": remediation,
             "for_finding": finding,

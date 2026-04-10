@@ -659,43 +659,98 @@ python inference.py --space https://Itachi1824-compliance-auditor-env.hf.space</
 
 # ── Playground callbacks ────────────────────────────────────────
 
-def _pg_reset(difficulty: str) -> Tuple:
+# Scenario choices for the picker
+SCENARIO_CHOICES = [s["id"] for s in SCENARIO_LIST]
+
+# Tool-specific argument hints
+TOOL_ARG_HINTS = {
+    "get_system_overview": "",
+    "classify_system": '{"risk_category": "high_risk"}',
+    "check_documentation": "",
+    "audit_training_data": "",
+    "verify_human_oversight": "",
+    "check_transparency": "",
+    "assess_risk_management": "",
+    "check_logging": "",
+    "submit_finding": '{"finding": "gender_bias_in_screening", "severity": "critical"}',
+    "recommend_fix": '{"finding": "bias", "remediation": "conduct_bias_audit", "priority": 1}',
+    "verify_compliance": '{"risk_classification": "high_risk", "overall_assessment": "Multiple gaps found", "key_findings_summary": "Bias, oversight, documentation issues"}',
+}
+
+TOOL_CHOICES = [
+    "get_system_overview", "classify_system", "check_documentation",
+    "audit_training_data", "verify_human_oversight", "check_transparency",
+    "assess_risk_management", "check_logging", "submit_finding",
+    "recommend_fix", "verify_compliance",
+]
+
+
+def _pg_reset(scenario_id: str) -> Tuple:
     env = ComplianceAuditorEnvironment()
-    obs = env.reset(difficulty=difficulty)
+    env.reset(scenario_id=scenario_id)
     sid = str(uuid.uuid4())
     with _pg_lock:
         _pg_sessions[sid] = env
-    status = f"Session: {sid[:8]}... | Scenario: {env._scenario.scenario_id} | Queries: 0/100"
-    return sid, status, obs.metadata
+    sc = env._scenario
+    status_html = (
+        f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;">{sc.scenario_id.split("_")[0].upper()}</div><div class="label">DIFFICULTY</div></div>'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;">0/100</div><div class="label">QUERIES</div></div>'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;">0</div><div class="label">FINDINGS</div></div>'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;">0</div><div class="label">REMEDIATIONS</div></div>'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">REWARD</div></div>'
+        f'</div>'
+    )
+    alert_msg = (
+        f"COMPLIANCE AUDIT ASSIGNED\n\n"
+        f"System: {sc.system_name}\n"
+        f"Classification: {sc.correct_classification} (hidden from agent)\n"
+        f"Findings to discover: {len(sc.ground_truth_findings)}\n\n"
+        f"Call get_system_overview to begin."
+    )
+    return sid, status_html, alert_msg, json.dumps({"session": sid[:8], "scenario": sc.scenario_id}, indent=2)
+
 
 def _pg_call(sid: str, tool_name: str, args_str: str) -> Tuple:
     if not sid:
-        return "Click Reset first", "(no session)", {"error": "No session"}
+        return '<div style="color:#F43F5E;">Click Reset first</div>', "(no session)", {"error": "No session"}
     with _pg_lock:
         env = _pg_sessions.get(sid)
     if not env:
-        return "Session expired", "(expired)", {"error": "Session not found"}
+        return '<div style="color:#F43F5E;">Session expired — click Reset</div>', "(expired)", {"error": "Session not found"}
     fn = env._tool_fns.get(tool_name)
     if not fn:
-        return f"Unknown tool: {tool_name}", "(error)", {"error": "Unknown tool"}
+        return f'<div style="color:#F43F5E;">Unknown tool: {tool_name}</div>', "(error)", {"error": "Unknown tool"}
     try:
         kwargs = json.loads(args_str) if args_str and args_str.strip() else {}
     except json.JSONDecodeError:
-        return "Invalid JSON", "(error)", {"error": "Bad JSON in arguments"}
+        return '<div style="color:#F43F5E;">Invalid JSON in arguments</div>', "(error)", {"error": "Bad JSON"}
     try:
         result = fn(**kwargs)
         parsed = json.loads(result) if isinstance(result, str) else result
         queries = env._queries_used
         done = env._done
         reward = env._reward
-        status = f"Queries: {queries}/100 | Findings: {len(env._findings_submitted)} | Done: {done}"
-        if done:
-            status += f" | REWARD: {reward:.4f}"
+        findings_n = len(env._findings_submitted)
+        remed_n = len(env._remediation_submitted)
+
+        # Status dashboard
+        reward_color = EMERALD if reward >= 0.6 else (AMBER if reward >= 0.3 else (ROSE if done else MUTED))
+        reward_display = f"{reward:.4f}" if done else "—"
+        done_indicator = f'<span style="color:{EMERALD};">COMPLETE</span>' if done else f'<span style="color:{AMBER};">IN PROGRESS</span>'
+        status_html = (
+            f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;">{done_indicator}</div><div class="label">STATUS</div></div>'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;">{queries}/100</div><div class="label">QUERIES</div></div>'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;">{findings_n}</div><div class="label">FINDINGS</div></div>'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;">{remed_n}</div><div class="label">REMEDIATIONS</div></div>'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;color:{reward_color};">{reward_display}</div><div class="label">REWARD</div></div>'
+            f'</div>'
+        )
 
         # Extract document content for rich display
         doc_content = parsed.get("content", "")
         if not doc_content and "audit_summary" in parsed:
-            # Verify compliance result — format nicely
             summary = parsed["audit_summary"]
             lines = [f"AUDIT COMPLETE — Reward: {parsed.get('reward', 0):.4f}"]
             lines.append(f"\nClassification: {summary['classification']['submitted']} "
@@ -714,19 +769,14 @@ def _pg_call(sid: str, tool_name: str, args_str: str) -> Tuple:
         elif not doc_content:
             doc_content = json.dumps(parsed, indent=2)
 
-        return status, doc_content, parsed
+        return status_html, doc_content, parsed
     except Exception as e:
-        return f"Error: {e}", str(e), {"error": str(e)}
+        return f'<div style="color:#F43F5E;">Error: {e}</div>', str(e), {"error": str(e)}
 
 
-# ── Build the Gradio app ────────────────────────────────────────
-
-TOOL_CHOICES = [
-    "get_system_overview", "classify_system", "check_documentation",
-    "audit_training_data", "verify_human_oversight", "check_transparency",
-    "assess_risk_management", "check_logging", "submit_finding",
-    "recommend_fix", "verify_compliance",
-]
+def _pg_update_hint(tool_name: str) -> str:
+    """Return argument hint when tool selection changes."""
+    return TOOL_ARG_HINTS.get(tool_name, "")
 
 
 def create_landing_app() -> gr.Blocks:
@@ -742,8 +792,8 @@ def create_landing_app() -> gr.Blocks:
                 gr.HTML(f"<h2>Design Decisions</h2>")
                 gr.HTML(_design_cards_html())
                 gr.HTML(f"""<div class="footer">
-                    compliance_auditor_env &middot; 6-component reward &middot; 8 scenarios &middot;
-                    11 tools &middot; state-graph audit &middot; parameter randomization &middot; deterministic grading<br/>
+                    compliance_auditor_env &middot; 6-component reward &middot; 9 scenarios + procedural &middot;
+                    11 tools &middot; state-graph audit &middot; parameter randomization &middot; 74 tests<br/>
                     <a href="https://github.com/Itachi-1824/compliance-auditor-env">github</a> &middot;
                     <a href="https://huggingface.co/spaces/Itachi1824/compliance-auditor-env">huggingface</a>
                 </div>""")
@@ -762,37 +812,56 @@ def create_landing_app() -> gr.Blocks:
 
             # ── TAB 4: Playground ──
             with gr.Tab("Playground"):
-                gr.HTML(f"<h2>Interactive Audit</h2>")
-                gr.HTML(f'<p style="color:{MUTED};margin-bottom:12px;">Reset to start a session, then call tools in sequence. The environment tracks your audit state and scores your methodology. Documents render below — this is what the agent sees.</p>')
+                gr.HTML(f"""<h2>Live Interactive Audit</h2>
+                    <p style="color:{MUTED};margin-bottom:16px;">
+                        Pick a scenario, reset the environment, then call tools step by step.
+                        Watch the audit state change after each action. Documents render below — this is exactly what the agent sees.
+                    </p>""")
 
                 session_state = gr.State(value=None)
-                pg_status = gr.Textbox(label="Status", interactive=False, value="Click Reset to begin")
 
                 with gr.Row(elem_classes="pg-row"):
-                    pg_diff = gr.Dropdown(choices=["easy", "medium", "hard"], value="medium", label="Difficulty")
-                    pg_reset_btn = gr.Button("Reset", variant="primary", min_width=120)
+                    pg_scenario = gr.Dropdown(
+                        choices=SCENARIO_CHOICES,
+                        value="medium_hiring_bias_001",
+                        label="Scenario",
+                    )
+                    pg_reset_btn = gr.Button("Reset episode", variant="primary", min_width=160)
 
+                pg_status = gr.HTML(
+                    value=f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;text-align:center;color:{MUTED};">Click Reset to start an episode</div>'
+                )
+
+                gr.HTML(f'<h3 style="margin-top:16px;">Call a tool</h3>')
                 with gr.Row(elem_classes="pg-row"):
                     pg_tool = gr.Dropdown(choices=TOOL_CHOICES, value="get_system_overview", label="Tool")
-                    pg_args = gr.Textbox(label="Arguments (JSON)", placeholder='{"risk_category": "high_risk"}')
-                    pg_call_btn = gr.Button("Call Tool", variant="secondary", min_width=120)
+                    pg_args = gr.Textbox(label="Arguments (JSON)", placeholder="(no arguments needed)", lines=1)
+                    pg_call_btn = gr.Button("Step", variant="secondary", min_width=120)
 
-                pg_doc = gr.Textbox(label="Document Content (what the agent sees)", lines=20, interactive=False)
+                pg_doc = gr.Textbox(
+                    label="Document content (what the agent sees)",
+                    lines=22,
+                    interactive=False,
+                    value="Click Reset to start, then call get_system_overview.",
+                )
 
-                with gr.Accordion("Raw JSON Response", open=False):
+                with gr.Accordion("Raw JSON response", open=False):
                     pg_result = gr.JSON(label="Raw")
 
-                def _on_reset(diff):
-                    sid, status, obs = _pg_reset(diff)
-                    initial_doc = obs.get("message", "Session started. Call get_system_overview to begin.")
-                    return sid, status, initial_doc, obs
+                def _on_reset(scenario_id):
+                    sid, status_html, doc_content, raw = _pg_reset(scenario_id)
+                    return sid, status_html, doc_content, raw
 
                 def _on_call(sid, tool, args):
-                    status, doc_content, result = _pg_call(sid, tool, args)
-                    return status, doc_content, result
+                    status_html, doc_content, result = _pg_call(sid, tool, args)
+                    return status_html, doc_content, result
 
-                pg_reset_btn.click(_on_reset, [pg_diff], [session_state, pg_status, pg_doc, pg_result])
+                def _on_tool_change(tool):
+                    return _pg_update_hint(tool)
+
+                pg_reset_btn.click(_on_reset, [pg_scenario], [session_state, pg_status, pg_doc, pg_result])
                 pg_call_btn.click(_on_call, [session_state, pg_tool, pg_args], [pg_status, pg_doc, pg_result])
+                pg_tool.change(_on_tool_change, [pg_tool], [pg_args])
 
             # ── TAB 5: Architecture ──
             with gr.Tab("Architecture"):

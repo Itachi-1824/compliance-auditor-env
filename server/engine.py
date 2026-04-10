@@ -22,7 +22,7 @@ from __future__ import annotations
 import random
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 
 # ---------------------------------------------------------------------------
@@ -180,15 +180,16 @@ class AuditScenario:
         regions = ["EU-West", "EU-Central", "EU-North", "EU-South", "EU-East"]
         versions = ["v2.1", "v3.0", "v4.2", "v5.1", "v1.8", "v6.0"]
 
+        deploy_date = f"2026-{rng.randint(1, 3):02d}-{rng.randint(1, 28):02d}"
+        user_ct = rng.randint(10000, 5000000)
         self._rand_params = {
             "company": rng.choice(company_names),
             "region": rng.choice(regions),
             "version": rng.choice(versions),
-            "date": f"2026-{rng.randint(1,3):02d}-{rng.randint(1,28):02d}",
-            "usercount": f"{rng.randint(10000, 5000000):,}",
-            # Keep old keys for backwards compat with get_param()
-            "deployment_date": f"2026-{rng.randint(1,3):02d}-{rng.randint(1,28):02d}",
-            "user_count": str(rng.randint(10000, 5000000)),
+            "date": deploy_date,
+            "usercount": f"{user_ct:,}",
+            "deployment_date": deploy_date,
+            "user_count": str(user_ct),
         }
 
     def get_param(self, key: str) -> str:

@@ -1,8 +1,8 @@
 """
 EU AI Act Compliance Auditor — HTTP Client.
 
-HTTP-based client that works through HF Space proxy (no WebSocket timeout issues).
-Same API as Maverick98's SREIncidentEnvHTTP: reset(), list_tools(), call_tool().
+HTTP-based client connecting to the HF Space via short HTTP round-trips.
+API: reset(), list_tools(), call_tool(). No WebSocket needed.
 """
 
 from __future__ import annotations

@@ -150,6 +150,55 @@ def _score_cell(s: float) -> str:
     return f'<td style="color:{c};font-weight:600;text-align:center;">{s:.3f}</td>'
 
 
+# ── Mermaid state-graph builder ──────────────────────────────────
+
+import base64
+
+
+def _build_mermaid(scenario_id: str) -> str:
+    """Build a Mermaid graph LR diagram for the audit state graph."""
+    sc = get_scenario(scenario_id, seed=1)
+    g = sc.graph
+
+    lines = ["graph LR"]
+    lines.append(f'    classDef start fill:#F43F5E,stroke:#F43F5E,color:#fff')
+    lines.append(f'    classDef progress fill:#10B981,stroke:#10B981,color:#fff')
+    lines.append(f'    classDef terminal fill:#10B981,stroke:#C9A84C,color:#fff,stroke-width:3px')
+    lines.append(f'    classDef trap fill:#F43F5E,stroke:#F43F5E,color:#fff,stroke-dasharray:5 5')
+
+    # Add nodes
+    for node_id, node in g.nodes.items():
+        label = node.label.replace('"', "'")
+        if node.is_start:
+            lines.append(f'    {node_id}["{label}"]:::start')
+        elif node.is_terminal:
+            lines.append(f'    {node_id}(("{label}")):::terminal')
+        else:
+            lines.append(f'    {node_id}["{label}"]:::progress')
+
+    # Add progress edges (green)
+    for t in g.transitions:
+        if t.outcome == "progress":
+            lines.append(f'    {t.from_state} -->|{t.tool_name}| {t.to_state}')
+        elif t.outcome == "worsened":
+            lines.append(f'    {t.from_state} -.->|"trap: {t.tool_name}"| {t.to_state}')
+
+    return "\n".join(lines)
+
+
+def _mermaid_to_url(code: str) -> str:
+    """Encode Mermaid code to a mermaid.ink SVG URL."""
+    encoded = base64.urlsafe_b64encode(code.encode("utf-8")).decode("ascii").rstrip("=")
+    return f"https://mermaid.ink/svg/{encoded}?bgColor=09090B"
+
+
+def _mermaid_img(scenario_id: str) -> str:
+    """Return an <img> tag for the scenario's state graph via mermaid.ink."""
+    code = _build_mermaid(scenario_id)
+    url = _mermaid_to_url(code)
+    return f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;margin-top:12px;text-align:center;"><img src="{url}" style="max-width:100%;height:auto;" alt="State graph for {scenario_id}" onerror="this.parentElement.innerHTML=\'<p style=color:{MUTED}>State graph rendering unavailable</p>\'"/><p style="color:{MUTED};font-size:11px;margin-top:8px;">green = correct audit path &middot; red dashed = trap actions (wrong tool order)</p></div>'
+
+
 # ── HTML builders ───────────────────────────────────────────────
 
 def _hero_html() -> str:
@@ -225,6 +274,7 @@ def _scenarios_html() -> str:
                     <ul class="findings">{remediation_li}</ul>
                 </div>
             </div>
+            {_mermaid_img(s["id"])}
         </div>"""
     return html
 

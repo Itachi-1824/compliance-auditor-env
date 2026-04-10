@@ -1,5 +1,14 @@
 [
   {
+    "model": "stepfun-ai/step-3.5-flash",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.47250000000000003,
+      "medium_hiring_bias_001": 0.42488095238095236,
+      "hard_social_scoring_prohibited_001": 0.40375
+    },
+    "overall": 0.4337
+  },
+  {
     "model": "mistralai/mistral-small-4-119b-2603",
     "scores": {
       "easy_chatbot_transparency_001": 0.4571153846153846,
@@ -7,6 +16,15 @@
       "hard_social_scoring_prohibited_001": 0.34750000000000003
     },
     "overall": 0.4098
+  },
+  {
+    "model": "deepseek-ai/deepseek-v3.1",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.44166666666666665,
+      "medium_hiring_bias_001": 0.42488095238095236,
+      "hard_social_scoring_prohibited_001": 0.34750000000000003
+    },
+    "overall": 0.4047
   },
   {
     "model": "meta/llama-4-maverick-17b-128e-instruct",

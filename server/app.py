@@ -10,7 +10,6 @@ import inspect
 import json
 import uuid
 import asyncio
-import threading
 import uvicorn
 from typing import Any, Dict, Optional
 

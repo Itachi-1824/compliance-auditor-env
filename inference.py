@@ -174,6 +174,7 @@ async def run_episode(
     step_count = 0
     done = False
     consecutive_text = 0
+    step_rewards: List[float] = []  # Track all step rewards for [END] line
 
     while not done and step_count < MAX_STEPS:
         step_count += 1
@@ -264,13 +265,15 @@ async def run_episode(
             if hasattr(env, "_last_reward") and env._last_reward:
                 reward = max(reward, env._last_reward)
 
-            safe_reward = max(0.01, min(0.99, reward))
-            print(f"[STEP] step={step_count} action={tool_name} reward={safe_reward:.2f} done={'true' if done else 'false'} error=null", flush=True)
+            step_rewards.append(round(reward, 2))
+            print(f"[STEP] step={step_count} action={tool_name} reward={reward:.2f} done={'true' if done else 'false'} error=null", flush=True)
 
             if done:
                 final_score = max(0.01, min(0.99, reward))
-                print(f"[END] task={task_name} score={final_score:.2f} steps={step_count}", flush=True)
-                return {"reward": reward, "steps": step_count}
+                success = "true" if final_score >= 0.3 else "false"
+                rewards_str = ",".join(f"{r:.2f}" for r in step_rewards)
+                print(f"[END] success={success} steps={step_count} score={final_score:.2f} rewards={rewards_str}", flush=True)
+                return {"reward": final_score, "steps": step_count}
 
             # Add result to history
             if len(result_text) > 3000:
@@ -307,7 +310,9 @@ async def run_episode(
             reward = 0.01
     except Exception:
         reward = 0.01
-    print(f"[END] task={task_name} score={reward:.2f} steps={step_count}", flush=True)
+    success = "true" if reward >= 0.3 else "false"
+    rewards_str = ",".join(f"{r:.2f}" for r in step_rewards)
+    print(f"[END] success={success} steps={step_count} score={reward:.2f} rewards={rewards_str}", flush=True)
     return {"reward": reward, "error": "max_steps_auto_graded", "steps": step_count}
 
 
@@ -332,11 +337,11 @@ async def async_main() -> None:
 
     api_key = HF_TOKEN
     if not api_key:
-        print("[DEBUG] No HF_TOKEN set. Using dummy key.", flush=True)
-        api_key = "dummy"
+        print("[ERROR] HF_TOKEN or OPENAI_API_KEY environment variable is required.", file=sys.stderr, flush=True)
+        sys.exit(1)
 
     model = args.model or MODEL_NAME
-    llm_client = OpenAI(base_url=API_BASE_URL, api_key=api_key)
+    llm_client = OpenAI(base_url=API_BASE_URL, api_key=api_key, timeout=60.0)
 
     # Determine base URL
     if args.space:

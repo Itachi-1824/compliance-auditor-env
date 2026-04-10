@@ -248,9 +248,18 @@ def compute_reward(
 
     # 2. Finding completeness (25%) — recall of ground truth findings
     if scenario.ground_truth_findings:
-        found = set(f.lower().strip() for f in findings_submitted)
+        found = set(f.lower().strip() for f in findings_submitted if len(f.strip()) >= 3)
         truth = set(f.lower() for f in scenario.ground_truth_findings)
-        matches = sum(1 for t in truth if any(t in f or f in t for f in found))
+
+        def _token_match(submitted: str, ground_truth: str) -> bool:
+            s_tok = set(submitted.replace("-", "_").split("_"))
+            t_tok = set(ground_truth.replace("-", "_").split("_"))
+            s_tok.discard("")
+            t_tok.discard("")
+            overlap = len(s_tok & t_tok)
+            return overlap >= 2 or (t_tok and overlap / len(t_tok) >= 0.4) or submitted == ground_truth
+
+        matches = sum(1 for t in truth if any(_token_match(f, t) for f in found))
         breakdown.finding_completeness = matches / len(truth)
     else:
         breakdown.finding_completeness = 1.0  # no findings expected
@@ -287,8 +296,8 @@ def compute_reward(
 
     # 5. Process methodology (15%) — correct audit sequence
     expected_sequence = [
-        "classify_system", "check_documentation", "audit_training_data",
-        "verify_human_oversight", "check_transparency", "assess_risk_management",
+        "get_system_overview", "classify_system", "check_documentation", "audit_training_data",
+        "verify_human_oversight", "check_transparency", "assess_risk_management", "check_logging",
     ]
     actual_tools = [t for t in tool_sequence if t in expected_sequence]
     if actual_tools:

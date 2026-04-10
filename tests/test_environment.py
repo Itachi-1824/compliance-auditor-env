@@ -113,10 +113,11 @@ def test_query_budget():
     fns = env._tool_fns
 
     r1 = json.loads(fns["get_system_overview"]())
-    assert r1["queries_remaining"] == 99  # 100 - 1
+    from server.environment import QUERY_BUDGET
+    assert r1["queries_remaining"] == QUERY_BUDGET - 1
 
     r2 = json.loads(fns["check_documentation"]())
-    assert r2["queries_remaining"] == 98  # 100 - 2
+    assert r2["queries_remaining"] == QUERY_BUDGET - 2
     print("PASS: Query budget tracking")
 
 

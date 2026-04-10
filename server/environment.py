@@ -45,7 +45,7 @@ except ImportError:
     )
 
 
-QUERY_BUDGET = 100  # Max tool calls per episode
+QUERY_BUDGET = 200  # Max tool calls per episode (generous budget — not the bottleneck)
 
 
 class ComplianceAuditorEnvironment(Environment):
@@ -347,12 +347,36 @@ class ComplianceAuditorEnvironment(Environment):
     # Tool implementations
     # ------------------------------------------------------------------
 
+    def _detect_loop(self) -> Optional[str]:
+        """Detect if the agent is stuck in a loop and inject guidance."""
+        seq = self._tool_sequence
+        if len(seq) < 3:
+            return None
+        # Same tool 3x in a row
+        if seq[-1] == seq[-2] == seq[-3]:
+            tool = seq[-1]
+            # Suggest next logical step
+            uncalled = [t for t in [
+                "get_system_overview", "classify_system", "check_documentation",
+                "audit_training_data", "verify_human_oversight", "check_transparency",
+                "assess_risk_management", "check_logging", "submit_finding",
+                "recommend_fix", "verify_compliance",
+            ] if t not in set(seq)]
+            if uncalled:
+                suggestion = uncalled[0]
+            else:
+                suggestion = "verify_compliance"
+            return (
+                f"LOOP DETECTED: You have called {tool} three times consecutively. "
+                f"Consider calling {suggestion} next to advance your audit."
+            )
+        return None
+
     def _use_query(self) -> Optional[str]:
         """Consume a query from the budget. Auto-grades if exhausted."""
         self._queries_used += 1
         self._step_count += 1
         if self._queries_used > QUERY_BUDGET:
-            # Auto-grade whatever the agent has done so far
             return self._auto_verify("Query budget exhausted — auto-grading partial work")
         return None
 
@@ -548,6 +572,11 @@ class ComplianceAuditorEnvironment(Environment):
         }
         if call_count >= 2:
             result["note"] = "DEEP DIVE: Additional forensic detail revealed on re-investigation."
+
+        # Loop detection guidance
+        loop_warning = self._detect_loop()
+        if loop_warning:
+            result["warning"] = loop_warning
 
         return json.dumps(result, indent=2)
 

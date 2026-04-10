@@ -31,38 +31,27 @@ MODEL_NAME = os.getenv("MODEL_NAME", "google/gemma-4-31b-it")
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-MAX_STEPS = 50
+MAX_STEPS = 30
 CONTEXT_CHAR_LIMIT = 100000
 
-SYSTEM_PROMPT = """You are an expert EU AI Act compliance auditor. You must investigate AI systems and determine their compliance status.
+SYSTEM_PROMPT = """You are an EU AI Act compliance auditor. Complete your audit in UNDER 25 tool calls.
 
-# MISSION
-Audit the AI system, classify its risk level, identify all compliance violations, recommend remediation, and submit your final determination.
+WORKFLOW (follow this EXACT sequence):
+1. get_system_overview — understand the system
+2. classify_system — set risk_category to: prohibited, high_risk, limited_risk, or minimal_risk
+3. check_documentation — review technical docs
+4. audit_training_data — check for bias
+5. verify_human_oversight — check Article 14
+6. check_transparency — check Article 50
+7. assess_risk_management — check Article 9
+8. check_logging — check Article 12
+9. submit_finding — report EACH violation you found (one per call)
+10. recommend_fix — propose fix for each finding
+11. verify_compliance — MUST BE YOUR FINAL CALL with risk_classification, overall_assessment, key_findings_summary
 
-# TOOLS (call them in this order)
-
-## Investigation (gather evidence)
-- get_system_overview: ALWAYS call this first — understand what you're auditing
-- classify_system: Classify risk level (prohibited/high_risk/limited_risk/minimal_risk)
-- check_documentation: Review Annex IV technical documentation
-- audit_training_data: Check for bias, data governance (Article 10)
-- verify_human_oversight: Verify Article 14 human-in-the-loop
-- check_transparency: Check Article 50 transparency obligations
-- assess_risk_management: Review risk management system (Article 9)
-- check_logging: Verify automatic logging (Article 12)
-
-## Resolution (after investigation)
-- submit_finding: Report each violation found (call multiple times if needed)
-- recommend_fix: Propose remediation for each finding
-- verify_compliance: FINAL — submit your overall compliance determination
-
-# CRITICAL RULES
-- ALWAYS call get_system_overview FIRST
-- INVESTIGATE before CLASSIFYING — gather evidence before judging
-- For PROHIBITED systems: classify as prohibited, submit finding, recommend immediate shutdown
-- For HIGH-RISK: check ALL articles (documentation, data, oversight, transparency, risk, logging)
-- Call submit_finding for EACH violation separately
-- Call verify_compliance LAST with your final risk_classification
+CRITICAL: You MUST call verify_compliance as your last tool call. Without it, you get zero score.
+CRITICAL: Always use tool calls, never output plain text.
+CRITICAL: For PROHIBITED systems — classify as prohibited, submit finding, recommend shutdown, then verify_compliance immediately.
 """
 
 
@@ -189,30 +178,42 @@ async def run_episode(
     while not done and step_count < MAX_STEPS:
         step_count += 1
 
+        # Force verify_compliance at 80% of budget — don't let models waste steps
+        if step_count >= int(MAX_STEPS * 0.8) and not done:
+            messages.append({"role": "user", "content": f"WARNING: Only {MAX_STEPS - step_count} steps remaining! Call verify_compliance NOW with your best assessment or you get zero score."})
+
+        # At 90% budget — force tool_choice to verify_compliance
+        force_verify = step_count >= int(MAX_STEPS * 0.9)
+
         # LLM call with retry
         response = None
+        create_kwargs = {
+            "model": model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": {"type": "function", "function": {"name": "verify_compliance"}} if force_verify else "auto",
+            "temperature": 0.1,
+            "max_tokens": 500,
+        }
         for attempt in range(4):
             try:
-                response = llm_client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto",
-                    temperature=0.1,
-                    max_tokens=500,
-                )
+                response = llm_client.chat.completions.create(**create_kwargs)
                 break
             except Exception as e:
                 if "429" in str(e) or "rate" in str(e).lower():
                     wait = 2 ** attempt + 1
                     time.sleep(wait)
                     continue
+                # Some models don't support tool_choice with specific function
+                if force_verify and ("tool_choice" in str(e).lower() or "function" in str(e).lower()):
+                    create_kwargs["tool_choice"] = "auto"
+                    continue
                 print(f"[DEBUG] LLM error: {str(e)[:100]}", flush=True)
                 break
 
         if response is None:
-            print(f"[END] task={task_name} score=0.01 steps={step_count}", flush=True)
-            return {"reward": 0.01, "error": "LLM failed", "steps": step_count}
+            # Force-verify on LLM failure
+            break
 
         message = response.choices[0].message
 
@@ -280,10 +281,14 @@ async def run_episode(
         elif message.content:
             consecutive_text += 1
             messages.append({"role": "assistant", "content": message.content})
-            if consecutive_text >= 3:
-                messages.append({"role": "user", "content": "You MUST call verify_compliance NOW with your best assessment."})
+            if consecutive_text >= 2:
+                # Force verify after 2 text outputs — don't waste steps
+                messages.append({"role": "user", "content": "STOP. Call verify_compliance RIGHT NOW. Arguments: risk_classification (prohibited/high_risk/limited_risk/minimal_risk), overall_assessment (string), key_findings_summary (string). DO NOT output text."})
             else:
-                messages.append({"role": "user", "content": "Please use one of the available tools."})
+                messages.append({"role": "user", "content": "Do not output text. Call a tool. Available: get_system_overview, classify_system, check_documentation, audit_training_data, verify_human_oversight, check_transparency, assess_risk_management, check_logging, submit_finding, recommend_fix, verify_compliance"})
+            if consecutive_text >= 4:
+                # 4 consecutive text outputs — force break and auto-verify
+                break
         else:
             continue
 

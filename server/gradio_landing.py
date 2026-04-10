@@ -814,12 +814,13 @@ def create_landing_app() -> gr.Blocks:
             with gr.Tab("Playground"):
                 gr.HTML(f"""<h2>Live Interactive Audit</h2>
                     <p style="color:{MUTED};margin-bottom:16px;">
-                        Pick a scenario, reset the environment, then call tools step by step.
-                        Watch the audit state change after each action. Documents render below — this is exactly what the agent sees.
+                        Pick a scenario, reset the environment, then call tools step by step against the real state graph.
+                        Watch the system state change after each action.
                     </p>""")
 
                 session_state = gr.State(value=None)
 
+                # ── Scenario picker + Reset ──
                 with gr.Row(elem_classes="pg-row"):
                     pg_scenario = gr.Dropdown(
                         choices=SCENARIO_CHOICES,
@@ -828,40 +829,97 @@ def create_landing_app() -> gr.Blocks:
                     )
                     pg_reset_btn = gr.Button("Reset episode", variant="primary", min_width=160)
 
+                # ── Status dashboard ──
                 pg_status = gr.HTML(
                     value=f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;text-align:center;color:{MUTED};">Click Reset to start an episode</div>'
                 )
 
-                gr.HTML(f'<h3 style="margin-top:16px;">Call a tool</h3>')
-                with gr.Row(elem_classes="pg-row"):
-                    pg_tool = gr.Dropdown(choices=TOOL_CHOICES, value="get_system_overview", label="Tool")
-                    pg_args = gr.Textbox(label="Arguments (JSON)", placeholder="(no arguments needed)", lines=1)
-                    pg_call_btn = gr.Button("Step", variant="secondary", min_width=120)
-
+                # ── Document viewer ──
                 pg_doc = gr.Textbox(
                     label="Document content (what the agent sees)",
-                    lines=22,
+                    lines=18,
                     interactive=False,
                     value="Click Reset to start, then call get_system_overview.",
                 )
 
+                # ── Call a tool section ──
+                gr.HTML(f'<h3 style="margin-top:16px;">Call a tool</h3>')
+
+                with gr.Row(elem_classes="pg-row"):
+                    pg_tool = gr.Dropdown(choices=TOOL_CHOICES, value="get_system_overview", label="Tool")
+                    pg_risk_cat = gr.Dropdown(
+                        choices=["prohibited", "high_risk", "limited_risk", "minimal_risk"],
+                        value="high_risk",
+                        label="RISK CATEGORY",
+                        visible=False,
+                    )
+                    pg_severity = gr.Dropdown(
+                        choices=["critical", "high", "medium", "low"],
+                        value="high",
+                        label="SEVERITY",
+                        visible=False,
+                    )
+
+                with gr.Row(elem_classes="pg-row"):
+                    pg_finding = gr.Textbox(label="FINDING", placeholder="e.g. gender_bias_in_screening", visible=False)
+                    pg_remediation = gr.Textbox(label="REMEDIATION", placeholder="e.g. conduct_bias_audit", visible=False)
+                    pg_assessment = gr.Textbox(label="OVERALL ASSESSMENT", placeholder="e.g. Multiple compliance gaps identified", visible=False)
+                    pg_summary = gr.Textbox(label="KEY FINDINGS SUMMARY", placeholder="e.g. Bias, oversight, documentation issues", visible=False)
+                    pg_priority = gr.Number(label="PRIORITY", value=1, visible=False, precision=0)
+
+                pg_call_btn = gr.Button("Step", variant="secondary")
+
                 with gr.Accordion("Raw JSON response", open=False):
                     pg_result = gr.JSON(label="Raw")
+
+                # ── Tool-specific field visibility ──
+                def _on_tool_change(tool):
+                    """Show/hide fields based on selected tool."""
+                    is_classify = tool == "classify_system"
+                    is_finding = tool == "submit_finding"
+                    is_fix = tool == "recommend_fix"
+                    is_verify = tool == "verify_compliance"
+                    return (
+                        gr.update(visible=is_classify or is_verify),     # risk_cat
+                        gr.update(visible=is_finding),                    # severity
+                        gr.update(visible=is_finding or is_fix),         # finding
+                        gr.update(visible=is_fix),                        # remediation
+                        gr.update(visible=is_verify),                     # assessment
+                        gr.update(visible=is_verify),                     # summary
+                        gr.update(visible=is_fix),                        # priority
+                    )
+
+                # ── Build args from fields ──
+                def _on_call(sid, tool, risk_cat, severity, finding, remediation, assessment, summary, priority):
+                    # Build args dict from the visible fields
+                    if tool == "classify_system":
+                        args_str = json.dumps({"risk_category": risk_cat})
+                    elif tool == "submit_finding":
+                        args_str = json.dumps({"finding": finding or "compliance_gap", "severity": severity})
+                    elif tool == "recommend_fix":
+                        args_str = json.dumps({"finding": finding or "issue", "remediation": remediation or "fix", "priority": int(priority or 1)})
+                    elif tool == "verify_compliance":
+                        args_str = json.dumps({"risk_classification": risk_cat, "overall_assessment": assessment or "Audit complete", "key_findings_summary": summary or "See findings"})
+                    else:
+                        args_str = "{}"
+                    status_html, doc_content, result = _pg_call(sid, tool, args_str)
+                    return status_html, doc_content, result
 
                 def _on_reset(scenario_id):
                     sid, status_html, doc_content, raw = _pg_reset(scenario_id)
                     return sid, status_html, doc_content, raw
 
-                def _on_call(sid, tool, args):
-                    status_html, doc_content, result = _pg_call(sid, tool, args)
-                    return status_html, doc_content, result
-
-                def _on_tool_change(tool):
-                    return _pg_update_hint(tool)
-
                 pg_reset_btn.click(_on_reset, [pg_scenario], [session_state, pg_status, pg_doc, pg_result])
-                pg_call_btn.click(_on_call, [session_state, pg_tool, pg_args], [pg_status, pg_doc, pg_result])
-                pg_tool.change(_on_tool_change, [pg_tool], [pg_args])
+                pg_call_btn.click(
+                    _on_call,
+                    [session_state, pg_tool, pg_risk_cat, pg_severity, pg_finding, pg_remediation, pg_assessment, pg_summary, pg_priority],
+                    [pg_status, pg_doc, pg_result],
+                )
+                pg_tool.change(
+                    _on_tool_change,
+                    [pg_tool],
+                    [pg_risk_cat, pg_severity, pg_finding, pg_remediation, pg_assessment, pg_summary, pg_priority],
+                )
 
             # ── TAB 5: Architecture ──
             with gr.Tab("Architecture"):

@@ -45,6 +45,31 @@ _sessions: Dict[str, ComplianceAuditorEnvironment] = {}
 _session_lock = asyncio.Lock()
 
 
+class GraderBody(BaseModel):
+    task_id: str = "easy"
+    episode_id: Optional[str] = None
+    classification: str = ""
+    findings: list = []
+    remediation: list = []
+
+
+@app.post("/grader")
+async def grader_endpoint(body: GraderBody):
+    """Grade a completed episode. Returns score in [0.001, 0.999]."""
+    from server.engine import compute_reward, safe_reward
+    from scenarios.registry import get_scenario
+    sc = get_scenario(body.task_id if "_" in body.task_id else f"easy_chatbot_transparency_001")
+    breakdown = compute_reward(
+        scenario=sc,
+        classification_submitted=body.classification,
+        findings_submitted=body.findings,
+        remediation_submitted=body.remediation,
+        tool_sequence=[],
+        steps_taken=10,
+    )
+    return {"score": breakdown.total(), "breakdown": breakdown.to_dict()}
+
+
 class ResetBody(BaseModel):
     difficulty: str = "medium"
     scenario_id: Optional[str] = None

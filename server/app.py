@@ -17,8 +17,8 @@ from typing import Any, Dict, Optional
 from fastapi import Body, HTTPException
 from pydantic import BaseModel
 from openenv.core.env_server import create_app
-from openenv.core.env_server.types import Action, Observation
 
+from models import ComplianceAction, ComplianceObservation
 from server.environment import ComplianceAuditorEnvironment, QUERY_BUDGET
 from scenarios.registry import SCENARIO_LIST, DIFFICULTY_TIERS
 
@@ -26,8 +26,8 @@ from scenarios.registry import SCENARIO_LIST, DIFFICULTY_TIERS
 
 app = create_app(
     ComplianceAuditorEnvironment,
-    Action,
-    Observation,
+    ComplianceAction,
+    ComplianceObservation,
     env_name="compliance_auditor_env",
     max_concurrent_envs=5,
 )

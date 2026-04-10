@@ -1,16 +1,28 @@
 """
 Data models for the EU AI Act Compliance Auditor Environment.
 
-MCP pattern: no custom Action class needed — the framework provides CallToolAction.
-We define Observation and State for typed environment responses.
+Typed Action, Observation, and State models for OpenEnv spec compliance.
 """
 
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+try:
+    from openenv.core.env_server.types import Action, Observation
+except ImportError:
+    from pydantic import BaseModel as Action
+    from pydantic import BaseModel as Observation
 
-class ComplianceObservation(BaseModel):
+
+class ComplianceAction(Action):
+    """Action for the Compliance Auditor — an MCP tool call."""
+
+    tool_name: str = Field(default="", description="Name of the audit tool to call")
+    arguments: Dict[str, Any] = Field(default_factory=dict, description="Tool arguments as JSON")
+
+
+class ComplianceObservation(Observation):
     """Observation returned after each environment interaction."""
 
     done: bool = False

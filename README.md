@@ -126,3 +126,28 @@ compliance_env/
 ├── Dockerfile              # Port 7860, python:3.11-slim
 └── openenv.yaml            # OpenEnv manifest with tasks
 ```
+
+## Baseline Scores
+
+Tested against live HF Space with NVIDIA NIM models:
+
+| Rank | Model | Easy | Medium | Hard | Overall |
+|------|-------|------|--------|------|---------|
+| 1 | stepfun-ai/step-3.5-flash | 0.473 | 0.425 | 0.404 | **0.434** |
+| 2 | mistralai/mistral-small-4-119b | 0.457 | 0.425 | 0.348 | **0.410** |
+| 3 | deepseek-ai/deepseek-v3.1 | 0.442 | 0.425 | 0.348 | **0.405** |
+
+Hard scenarios genuinely challenge frontier models — the prohibited social scoring detection requires the agent to see through deliberate misdirection ("wellness app" that's actually social scoring affecting public service access).
+
+## Sample Output
+
+```
+[START] task=easy_chatbot_transparency_001 env=compliance_auditor_env model=google/gemma-4-31b-it
+[STEP] step=1 action=get_system_overview reward=0.00 done=false error=null
+[STEP] step=2 action=classify_system reward=0.00 done=false error=null
+[STEP] step=3 action=check_documentation reward=0.00 done=false error=null
+[STEP] step=4 action=check_transparency reward=0.00 done=false error=null
+[STEP] step=5 action=submit_finding reward=0.00 done=false error=null
+[STEP] step=6 action=verify_compliance reward=0.46 done=true error=null
+[END] success=true steps=6 score=0.457 rewards=0.00,0.00,0.00,0.00,0.00,0.46
+```

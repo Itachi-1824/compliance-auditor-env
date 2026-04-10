@@ -230,11 +230,40 @@ def _mermaid_to_url(code: str) -> str:
     return f"https://mermaid.ink/svg/{encoded}?bgColor=09090B"
 
 
-def _mermaid_img(scenario_id: str) -> str:
-    """Return an <img> tag for the scenario's state graph via mermaid.ink."""
-    code = _build_mermaid(scenario_id)
-    url = _mermaid_to_url(code)
-    return f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;padding:16px;margin-top:12px;text-align:center;"><img src="{url}" style="max-width:100%;height:auto;" alt="State graph for {scenario_id}" onerror="this.parentElement.innerHTML=\'<p style=color:{MUTED}>State graph rendering unavailable</p>\'"/><p style="color:{MUTED};font-size:11px;margin-top:8px;">green = correct audit path &middot; red dashed = trap actions (wrong tool order)</p></div>'
+def _audit_flow_html(scenario_id: str) -> str:
+    """Render a clean text-based audit flow diagram."""
+    sc = get_scenario(scenario_id, seed=1)
+    g = sc.graph
+
+    # Get the progress-only path
+    steps = []
+    for t in g.transitions:
+        if t.outcome == "progress":
+            steps.append((t.from_state, t.tool_name, t.to_state))
+
+    if not steps:
+        return ""
+
+    # Build compact flow visualization
+    flow_items = []
+    seen = set()
+    for from_s, tool, to_s in steps:
+        if tool not in seen:
+            seen.add(tool)
+            flow_items.append(tool)
+
+    # Render as horizontal flow with arrows
+    flow_html = ""
+    for i, tool in enumerate(flow_items):
+        color = EMERALD if i < 2 else (AMBER if i < 8 else GOLD)
+        flow_html += f'<span style="background:{color}15;color:{color};padding:3px 8px;border-radius:4px;font-size:11px;font-family:monospace;white-space:nowrap;">{tool}</span>'
+        if i < len(flow_items) - 1:
+            flow_html += f'<span style="color:{MUTED};margin:0 4px;">&#8594;</span>'
+
+    return f'''<div style="background:{BG};border:1px solid {BORDER};border-radius:8px;padding:14px;margin-top:10px;overflow-x:auto;">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">{flow_html}</div>
+        <p style="color:{MUTED};font-size:10px;margin:8px 0 0 0;">{len(flow_items)} steps on optimal path &middot; wrong tool order = worsened state &middot; {len(g.transitions)} total transitions</p>
+    </div>'''
 
 
 # ── HTML builders ───────────────────────────────────────────────
@@ -312,7 +341,7 @@ def _scenarios_html() -> str:
                     <ul class="findings">{remediation_li}</ul>
                 </div>
             </div>
-            {_mermaid_img(s["id"])}
+            {_audit_flow_html(s["id"])}
         </div>"""
     return html
 

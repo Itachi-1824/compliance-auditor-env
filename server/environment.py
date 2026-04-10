@@ -1,11 +1,18 @@
 """
 EU AI Act Compliance Auditor — MCP Environment.
 
-Registers 10 MCP tools that the agent uses to audit AI systems for EU AI Act
-compliance. State-graph tracks audit progress. Terminal reward computed on
-verify_compliance with 6-component scoring.
+Investigation-grade environment where LLM agents audit AI systems for EU AI Act
+compliance. Tools return realistic regulatory documents (30-70 lines each) requiring
+genuine analysis — no pre-digested verdicts.
 
-Tools:
+Key features:
+  - Adaptive depth: repeat tool calls reveal forensic deep-dive content
+  - Dynamic state: environment responds to findings and remediation proposals
+  - Evidence chain validation: warns when findings lack supporting investigation
+  - 6-component terminal reward with anti-gaming (12 adversarial tests proven)
+  - 6 unique state graph topologies across 9 scenarios
+
+Tools (11):
   Investigation: get_system_overview, classify_system, check_documentation,
                  audit_training_data, verify_human_oversight, check_transparency,
                  assess_risk_management, check_logging
@@ -73,6 +80,7 @@ class ComplianceAuditorEnvironment(Environment):
         self._findings_submitted: List[str] = []
         self._remediation_submitted: List[str] = []
         self._discovered_info: Dict[str, bool] = {}
+        self._tool_call_counts: Dict[str, int] = {}  # track repeat calls per tool
 
         # Progress tracking for state graph
         self._max_progress_depth: int = 0
@@ -252,6 +260,87 @@ class ComplianceAuditorEnvironment(Environment):
         )
 
     # ------------------------------------------------------------------
+    # Document rendering
+    # ------------------------------------------------------------------
+
+    def _render_doc(self, template: str) -> str:
+        """Replace __PLACEHOLDER__ tokens with randomized scenario params
+        and inject seed-based noise for truly unique documents per episode."""
+        result = template
+        if self._scenario and self._scenario._rand_params:
+            for key, val in self._scenario._rand_params.items():
+                result = result.replace(f"__{key.upper()}__", str(val))
+
+        # Seed-based noise injection: vary specific numbers slightly
+        # so no two episodes produce identical documents
+        if self._scenario:
+            rng = random.Random(hash(self._episode_id))
+            result = self._inject_noise(result, rng)
+        return result
+
+    def _inject_noise(self, text: str, rng: random.Random) -> str:
+        """Inject seed-based perturbations into document text.
+
+        Varies percentages and counts slightly (within realistic ranges)
+        to ensure every episode is genuinely unique, not just parameter swaps.
+        The violations remain detectable but exact numbers change.
+        """
+        import re
+
+        def _perturb_pct(match: re.Match) -> str:
+            """Perturb a percentage value by +-2 percentage points."""
+            val = float(match.group(1))
+            delta = rng.uniform(-2.0, 2.0)
+            new_val = max(0.1, min(99.9, val + delta))
+            return f"{new_val:.1f}%"
+
+        def _perturb_count(match: re.Match) -> str:
+            """Perturb a large count by +-5%."""
+            val = int(match.group(1).replace(",", ""))
+            if val < 100:
+                return match.group(0)  # don't perturb small numbers
+            delta = rng.uniform(-0.05, 0.05)
+            new_val = int(val * (1 + delta))
+            if val >= 1000:
+                return f"{new_val:,}"
+            return str(new_val)
+
+        # Perturb percentages (e.g., "34.2%" -> "35.1%")
+        text = re.sub(r'(\d{1,2}\.\d)%', _perturb_pct, text)
+
+        # Perturb large counts (e.g., "1,342,104" -> "1,378,921")
+        text = re.sub(r'(\d{1,3}(?:,\d{3})+)', _perturb_count, text)
+
+        return text
+
+    def _audit_progress_section(self) -> str:
+        """Dynamic audit progress appended to tool responses.
+
+        After the agent starts submitting findings, this section appears
+        in subsequent tool responses, showing what's been found so far.
+        Makes the environment feel responsive and alive.
+        """
+        parts = []
+        if self._classification_submitted:
+            parts.append(f"  Classification submitted: {self._classification_submitted.replace('_', ' ').title()}")
+        if self._findings_submitted:
+            parts.append(f"  Findings submitted: {len(self._findings_submitted)}")
+            for i, f in enumerate(self._findings_submitted[-3:], 1):
+                parts.append(f"    {i}. {f[:80]}")
+        if self._remediation_submitted:
+            parts.append(f"  Remediations proposed: {len(self._remediation_submitted)}")
+        areas = []
+        for area, checked in self._discovered_info.items():
+            if checked:
+                areas.append(area)
+        if areas:
+            parts.append(f"  Areas investigated: {', '.join(areas)}")
+
+        if not parts:
+            return ""
+        return "\n\nAUDIT PROGRESS:\n" + "\n".join(parts)
+
+    # ------------------------------------------------------------------
     # Tool implementations
     # ------------------------------------------------------------------
 
@@ -313,19 +402,32 @@ class ComplianceAuditorEnvironment(Environment):
         outcome = self._advance_state("get_system_overview")
 
         s = self._scenario
-        result = {
-            "system_name": s.system_name,
-            "description": s.system_description,
-            "deployer": s.deployer_info,
-            "category_claim": s.system_category if s.difficulty == "easy" else "To be determined by auditor",
-            "deployment_date": s.get_param("deployment_date"),
-            "region": s.get_param("region"),
-            "user_count": s.get_param("user_count"),
-            "company": s.get_param("company"),
-            "version": s.get_param("version"),
+        # Build investigation brief
+        brief = (
+            f"COMPLIANCE AUDIT ASSIGNMENT\n"
+            f"{'=' * 60}\n"
+            f"System:     {s.system_name} {s.get_param('version')}\n"
+            f"Deployer:   {self._render_doc(s.deployer_info)}\n"
+            f"Region:     {s.get_param('region')}\n"
+            f"Users:      {s.get_param('user_count')}\n"
+            f"Deployed:   {s.get_param('deployment_date')}\n"
+            f"{'=' * 60}\n\n"
+            f"SYSTEM DESCRIPTION:\n"
+            f"  {self._render_doc(s.system_description)}\n\n"
+            f"DEPLOYER'S CLAIMED RISK CATEGORY: "
+            f"{'\"' + s.system_category.replace('_', ' ').title() + '\"' if s.difficulty == 'easy' else 'Not provided — to be determined by auditor'}\n\n"
+            f"AUDIT SCOPE:\n"
+            f"  Conduct a thorough compliance audit under the EU AI Act.\n"
+            f"  Investigate documentation, training data, human oversight,\n"
+            f"  transparency, risk management, and logging as applicable.\n"
+            f"  Submit findings and remediation recommendations.\n\n"
+            f"  Tools available: {QUERY_BUDGET - self._queries_used} queries remaining."
+        )
+        return json.dumps({
+            "document_type": "System Overview & Audit Assignment",
+            "content": brief,
             "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }
-        return json.dumps(result, indent=2)
+        }, indent=2)
 
     def _tool_classify_system(self, risk_category: str) -> str:
         budget_err = self._use_query()
@@ -350,17 +452,105 @@ class ComplianceAuditorEnvironment(Environment):
             "queries_remaining": QUERY_BUDGET - self._queries_used,
         })
 
+    def _remediation_overlay(self, area: str) -> str:
+        """Generate post-remediation overlay content for a re-investigated area.
+
+        When the agent recommends fixes and then re-checks a tool, the
+        environment shows how the proposed remediation would affect the area.
+        This makes the environment feel like a living system that responds
+        to the agent's actions.
+        """
+        if not self._remediation_submitted:
+            return ""
+
+        # Map areas to relevant remediation keywords
+        area_keywords = {
+            "documentation": ["documentation", "annex_iv", "technical_doc", "document"],
+            "training_data": ["bias", "audit", "data_governance", "training", "demographic"],
+            "oversight": ["human_review", "oversight", "human_oversight", "monitor"],
+            "transparency": ["disclosure", "transparency", "labeling", "notification"],
+            "risk_management": ["conformity", "risk_management", "assessment", "risk"],
+            "logging": ["logging", "traceability", "audit_trail", "record"],
+        }
+
+        relevant_remediations = []
+        keywords = area_keywords.get(area, [])
+        for rem in self._remediation_submitted:
+            if any(kw in rem for kw in keywords):
+                relevant_remediations.append(rem)
+
+        if not relevant_remediations:
+            return ""
+
+        lines = ["\n\nREMEDIATION STATUS UPDATE:"]
+        lines.append("  The following remediation actions have been proposed for this area:")
+        for i, rem in enumerate(relevant_remediations, 1):
+            lines.append(f"  {i}. {rem}")
+        lines.append("  Status: PROPOSED (pending implementation)")
+        lines.append("  Note: These are recommendations only. Re-investigation reflects")
+        lines.append("  the current pre-remediation state of the system.")
+        return "\n".join(lines)
+
+    def _get_deep_content(self, area: str) -> str:
+        """Get deep-dive content for repeat investigation calls."""
+        deep_map = {
+            "documentation": self._scenario.deep_documentation,
+            "training_data": self._scenario.deep_training_data,
+            "oversight": self._scenario.deep_oversight,
+            "transparency": self._scenario.deep_transparency,
+            "risk_management": self._scenario.deep_risk_assessment,
+            "logging": self._scenario.deep_logging,
+        }
+        return deep_map.get(area, "")
+
+    def _investigation_response(self, doc_type: str, content: str, area: str = "") -> str:
+        """Standard response format for investigation tools with dynamic state.
+
+        Features adaptive depth: repeat calls to the same tool reveal deeper
+        forensic analysis, additional statistics, and drill-down detail that
+        wasn't visible on the first pass.
+        """
+        # Track call count for adaptive depth
+        tool_key = area or doc_type
+        self._tool_call_counts[tool_key] = self._tool_call_counts.get(tool_key, 0) + 1
+        call_count = self._tool_call_counts[tool_key]
+
+        rendered = self._render_doc(content)
+
+        # Adaptive depth: on repeat calls, append deep-dive content
+        if call_count >= 2 and area:
+            deep = self._get_deep_content(area)
+            if deep:
+                rendered += "\n\n" + self._render_doc(deep)
+
+        # Add remediation overlay if agent has proposed fixes for this area
+        overlay = self._remediation_overlay(area)
+        if overlay:
+            rendered += overlay
+
+        # Add audit progress section
+        progress = self._audit_progress_section()
+        if progress:
+            rendered += progress
+
+        result = {
+            "document_type": doc_type,
+            "content": rendered,
+            "queries_remaining": QUERY_BUDGET - self._queries_used,
+        }
+        if call_count >= 2:
+            result["note"] = "DEEP DIVE: Additional forensic detail revealed on re-investigation."
+
+        return json.dumps(result, indent=2)
+
     def _tool_check_documentation(self) -> str:
         budget_err = self._use_query()
         if budget_err:
             return budget_err
         self._discovered_info["documentation"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("check_documentation")
-        return json.dumps({
-            "documentation_review": self._scenario.documentation_data,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("check_documentation")
+        return self._investigation_response("Technical Documentation Review", self._scenario.documentation_data, "documentation")
 
     def _tool_audit_training_data(self) -> str:
         budget_err = self._use_query()
@@ -368,11 +558,8 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._discovered_info["training_data"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("audit_training_data")
-        return json.dumps({
-            "training_data_audit": self._scenario.training_data_info,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("audit_training_data")
+        return self._investigation_response("Training Data Audit Report", self._scenario.training_data_info, "training_data")
 
     def _tool_verify_human_oversight(self) -> str:
         budget_err = self._use_query()
@@ -380,11 +567,8 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._discovered_info["oversight"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("verify_human_oversight")
-        return json.dumps({
-            "oversight_assessment": self._scenario.oversight_info,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("verify_human_oversight")
+        return self._investigation_response("Human Oversight Assessment", self._scenario.oversight_info, "oversight")
 
     def _tool_check_transparency(self) -> str:
         budget_err = self._use_query()
@@ -392,11 +576,8 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._discovered_info["transparency"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("check_transparency")
-        return json.dumps({
-            "transparency_assessment": self._scenario.transparency_info,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("check_transparency")
+        return self._investigation_response("Transparency & Disclosure Review", self._scenario.transparency_info, "transparency")
 
     def _tool_assess_risk_management(self) -> str:
         budget_err = self._use_query()
@@ -404,11 +585,8 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._discovered_info["risk_management"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("assess_risk_management")
-        return json.dumps({
-            "risk_assessment": self._scenario.risk_assessment_info,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("assess_risk_management")
+        return self._investigation_response("Risk Management & Conformity Assessment", self._scenario.risk_assessment_info, "risk_management")
 
     def _tool_check_logging(self) -> str:
         budget_err = self._use_query()
@@ -416,11 +594,8 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._discovered_info["logging"] = True
         self._observation_after_investigation += 1
-        outcome = self._advance_state("check_logging")
-        return json.dumps({
-            "logging_assessment": self._scenario.logging_info,
-            "queries_remaining": QUERY_BUDGET - self._queries_used,
-        }, indent=2)
+        self._advance_state("check_logging")
+        return self._investigation_response("Logging & Traceability Review", self._scenario.logging_info, "logging")
 
     def _tool_submit_finding(self, finding: str, severity: str = "high") -> str:
         budget_err = self._use_query()
@@ -428,12 +603,58 @@ class ComplianceAuditorEnvironment(Environment):
             return budget_err
         self._findings_submitted.append(finding.lower().strip())
         outcome = self._advance_state("submit_finding")
-        return json.dumps({
+
+        # Evidence chain validation — check if agent investigated relevant areas
+        evidence_warnings = []
+        finding_lower = finding.lower()
+        EVIDENCE_MAP = {
+            "bias": "training_data",
+            "discrimination": "training_data",
+            "data_governance": "training_data",
+            "callback": "training_data",
+            "demographic": "training_data",
+            "oversight": "oversight",
+            "human_review": "oversight",
+            "human_oversight": "oversight",
+            "article_14": "oversight",
+            "documentation": "documentation",
+            "annex_iv": "documentation",
+            "technical_doc": "documentation",
+            "transparency": "transparency",
+            "disclosure": "transparency",
+            "article_50": "transparency",
+            "labeling": "transparency",
+            "watermark": "transparency",
+            "risk_management": "risk_management",
+            "conformity": "risk_management",
+            "article_9": "risk_management",
+            "logging": "logging",
+            "traceability": "logging",
+            "article_12": "logging",
+            "audit_trail": "logging",
+        }
+        relevant_areas = set()
+        for keyword, area in EVIDENCE_MAP.items():
+            if keyword in finding_lower:
+                relevant_areas.add(area)
+
+        uninvestigated = [a for a in relevant_areas if not self._discovered_info.get(a)]
+        if uninvestigated:
+            evidence_warnings.append(
+                f"Note: Finding references {', '.join(uninvestigated)} "
+                f"but you have not investigated {'this area' if len(uninvestigated) == 1 else 'these areas'} yet. "
+                f"Findings are stronger when supported by evidence from investigation tools."
+            )
+
+        result = {
             "finding_recorded": finding,
             "severity": severity,
             "total_findings": len(self._findings_submitted),
             "queries_remaining": QUERY_BUDGET - self._queries_used,
-        })
+        }
+        if evidence_warnings:
+            result["evidence_warnings"] = evidence_warnings
+        return json.dumps(result)
 
     def _tool_recommend_fix(self, finding: str, remediation: str, priority: int = 1) -> str:
         budget_err = self._use_query()
@@ -473,16 +694,53 @@ class ComplianceAuditorEnvironment(Environment):
 
         self._reward = breakdown.total()
 
-        return json.dumps({
+        # Build detailed audit report showing what was found vs missed
+        ground_truth = self._scenario.ground_truth_findings
+        found_count = 0
+        missed = []
+        for gt in ground_truth:
+            gt_lower = gt.lower()
+            gt_tokens = set(gt_lower.replace("-", "_").split("_")) - {""}
+            matched = False
+            for sub in self._findings_submitted:
+                sub_tokens = set(sub.replace("-", "_").split("_")) - {""}
+                overlap = len(gt_tokens & sub_tokens)
+                if overlap >= 2 or (gt_tokens and overlap / len(gt_tokens) >= 0.4):
+                    matched = True
+                    break
+            if matched:
+                found_count += 1
+            else:
+                missed.append(gt)
+
+        # Classification feedback
+        correct_class = self._scenario.correct_classification.lower()
+        class_correct = self._classification_submitted == correct_class
+
+        audit_report = {
             "done": True,
             "reward": self._reward,
-            "assessment_recorded": overall_assessment[:200],
             "reward_breakdown": breakdown.to_dict(),
-            "findings_submitted": len(self._findings_submitted),
-            "remediations_submitted": len(self._remediation_submitted),
-            "queries_used": self._queries_used,
-            "episode_duration_seconds": round(time.time() - self._start_time, 1),
-        }, indent=2)
+            "audit_summary": {
+                "classification": {
+                    "submitted": self._classification_submitted or "(none)",
+                    "correct": correct_class,
+                    "match": "exact" if class_correct else "partial" if breakdown.classification > 0 else "wrong",
+                },
+                "findings": {
+                    "submitted": len(self._findings_submitted),
+                    "ground_truth_total": len(ground_truth),
+                    "matched": found_count,
+                    "missed": missed,
+                },
+                "remediation_count": len(self._remediation_submitted),
+                "areas_investigated": [k for k, v in self._discovered_info.items() if v],
+                "tool_calls_used": self._queries_used,
+                "episode_duration_seconds": round(time.time() - self._start_time, 1),
+            },
+        }
+
+        return json.dumps(audit_report, indent=2)
 
     def close(self) -> None:
         pass

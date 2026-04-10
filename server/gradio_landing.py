@@ -270,8 +270,8 @@ def _audit_flow_html(scenario_id: str) -> str:
 
 def _hero_html() -> str:
     stats = [
-        ("SCENARIOS", "8"), ("MCP TOOLS", "11"), ("REWARD COMPS", "6"),
-        ("TIERS", "3"), ("QUERY BUDGET", "100"), ("EU DEADLINE", "Aug '26"),
+        ("FIXED SCENARIOS", "9"), ("PROCEDURAL", "\u221E"), ("MCP TOOLS", "11"),
+        ("REWARD COMPS", "6"), ("TESTS", "74"), ("EU DEADLINE", "Aug '26"),
     ]
     stat_boxes = "".join(
         f'<div class="stat"><div class="val">{v}</div><div class="label">{k}</div></div>'
@@ -281,9 +281,11 @@ def _hero_html() -> str:
     <div class="hero">
         <div><span class="accent-bar"></span><h1 style="display:inline;vertical-align:middle;">EU AI Act Compliance Auditor</h1></div>
         <p class="subtitle">
-            An MCP-based environment where LLM agents audit AI systems for EU AI Act compliance.
-            8 scenarios from chatbot transparency to prohibited social scoring.
-            Parameter randomization on every reset prevents memorization &mdash; agents must learn the <em>audit process</em>, not specific answers.
+            An MCP environment where LLM agents audit AI systems for EU AI Act compliance.
+            Tools return investigation-grade regulatory documents &mdash; statistical tables, documentation inventories,
+            operational procedures &mdash; that require genuine analysis to identify violations.
+            No pre-digested verdicts. The agent must reason about evidence across 8 scenarios spanning
+            prohibited social scoring, high-risk hiring bias, medical device compliance, and multi-system corporate audits.
         </p>
         <div class="stats">{stat_boxes}</div>
     </div>"""
@@ -291,12 +293,12 @@ def _hero_html() -> str:
 
 def _design_cards_html() -> str:
     cards_data = [
-        ("\u00A7", "Real Regulatory Scenarios", "Based on actual EU AI Act articles: prohibited social scoring (Art. 5), high-risk hiring (Annex III), deepfake transparency (Art. 50), medical device audits. Not toy problems."),
-        ("\u2699", "Full Audit Toolkit", "11 MCP tools mirror a compliance auditor's workflow: system overview, risk classification, documentation review, bias audit, oversight verification, transparency check, risk assessment, logging verification."),
-        ("\u25C8", "State-Graph Audit Process", "Each scenario is a directed graph with progress / no_effect / worsened transitions. Partial credit via BFS depth along the optimal path. Wrong audit steps waste your query budget."),
-        ("\u25C9", "6-Component Reward", "Classification accuracy (20%), finding completeness (25%), finding precision (15%), remediation quality (15%), methodology adherence (15%), efficiency (10%). Anti-exploit design."),
-        ("\u27F3", "Parameter Randomization", "Company names, deployment dates, regions, and system versions re-rolled on every reset. 65K+ unique instances per scenario. Agents must generalize."),
-        ("\u23F1", "Enforcement: Aug 2026", "EU AI Act enforcement begins August 2, 2026. Fines up to EUR 35M or 7% of global revenue. Every company deploying AI in Europe needs compliance auditing."),
+        ("\u00A7", "Investigation-Grade Documents", "Tools return 30-70 line regulatory documents: Annex IV cross-reference tables, demographic callback rate matrices, operational procedure extracts. No labels like 'COMPLIANT' or 'FAILED' &mdash; the agent must analyze the evidence and reason about violations."),
+        ("\u2699", "Dynamic Audit State", "The environment responds to the agent's actions in real-time. After submitting findings, subsequent tool calls show audit progress. After classification, investigation tools reflect the current audit context. The environment feels alive, not static."),
+        ("\u25C8", "5 Unique Graph Topologies", "Each scenario has a distinct state graph. Prohibited systems have short detection paths (5 steps). Full high-risk audits require 11 steps across all investigation tools. Wrong tool order triggers worsened transitions. BFS-based partial credit."),
+        ("\u25C9", "12 Anti-Gaming Tests", "Adversarial test suite proves the reward can't be gamed: skip investigation, spam findings, red herring bait, hallucinated findings, wrong classification isolation, fewer-than-optimal rushing, and 6 more exploit strategies. All proven ineffective."),
+        ("\u27F3", "Cross-Document Reasoning", "Findings require correlating evidence across multiple tools. Hiring bias: training data shows 23% callback gap (audit_training_data) while only 5% of rejections reviewed (verify_human_oversight). Social scoring: 'wellness app' framing (overview) vs. public service access impact (check_transparency)."),
+        ("\u221E", "Procedural Scenario Generator", "Beyond the 9 fixed scenarios, a seed-based procedural generator combines 5 system types &times; 16 violation templates &times; 5 red herrings to produce <strong>infinite unique scenarios</strong>. Use <code>procedural_medium_42</code> as scenario ID &mdash; every seed creates a different audit. Impossible to memorize."),
     ]
     cards = ""
     for icon, title, desc in cards_data:
@@ -427,6 +429,71 @@ def _leaderboard_html() -> str:
     return f'<table class="lb">{header}{rows}</table>'
 
 
+def _investigation_depth_html() -> str:
+    """Show the before/after of investigation-grade tool responses."""
+    return f"""
+    <div class="arch-box" style="margin-bottom:16px;">
+        <h3 style="color:{GOLD};">Investigation-Grade Tool Responses</h3>
+        <p style="color:{MUTED};font-size:13px;margin-bottom:14px;">Tools return realistic regulatory documents requiring analysis — not pre-digested answers.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+                <h4 style="color:{ROSE};font-size:11px;letter-spacing:0.05em;margin-bottom:8px;">TYPICAL ENV (pre-digested)</h4>
+                <div class="code-block" style="font-size:11px;color:{MUTED};border-color:{ROSE}40;">{{"bias_assessment": "FAILED",
+ "callback_rate_gap": "23%",
+ "article_14_compliance": "NON-COMPLIANT",
+ "human_oversight": "INSUFFICIENT"}}</div>
+            </div>
+            <div>
+                <h4 style="color:{EMERALD};font-size:11px;letter-spacing:0.05em;margin-bottom:8px;">THIS ENV (investigation-grade)</h4>
+                <div class="code-block" style="font-size:11px;color:{EMERALD};border-color:{EMERALD}40;">CALLBACK RATES BY DEMOGRAPHIC:
+  Group             Rate     vs Baseline
+  Male applicants   34.2%    (baseline)
+  Female applicants 26.3%    -23.1%
+  Eastern EU        27.4%    -19.9%
+
+REVIEW STATISTICS (Q4 2025):
+  Auto-rejected:    208,375  (60.0%)
+  QA sample:         10,419  (5.0%)
+  QA overrides:         312  (3.0%)</div>
+            </div>
+        </div>
+        <p style="color:{MUTED};font-size:12px;margin-top:10px;">The agent must identify the 23% callback disparity from the table, recognize that 95% of rejections have no human review,
+        and correlate these across documents to form findings. No verdict is pre-computed.</p>
+    </div>"""
+
+
+def _antigaming_html() -> str:
+    """Anti-gaming test showcase."""
+    tests = [
+        ("Skip Investigation", "Submit correct findings without reading documents", "methodology = 0.0"),
+        ("Spam Findings", "Flood 16 findings hoping to hit ground truth", "precision < 0.50"),
+        ("Red Herring Bait", "Submit red herrings as violations", "precision = 0.0, completeness = 0.0"),
+        ("Immediate Verify", "Call verify_compliance with empty inputs", "total < 0.05"),
+        ("Wrong Classification", "Everything correct except risk category", "loses &ge; 10% gap"),
+        ("Skip Remediation", "Find all violations but propose no fixes", "remediation = 0.0"),
+        ("Classify Before Overview", "Skip system understanding", "methodology < 0.50"),
+        ("Rush (Fewer Steps)", "Game efficiency by taking fewer steps", "efficiency penalized"),
+        ("Hallucinate Findings", "Submit plausible-sounding false findings", "completeness < 0.40"),
+        ("Wrong Class on Prohibited", "Call prohibited system high_risk", "classification = 0.40"),
+        ("Perfect Run Sanity", "Legitimate perfect audit", "total > 0.85"),
+        ("Bounds Check", "All scenarios x all inputs", "reward in (0.001, 0.999)"),
+    ]
+    rows = ""
+    for name, strategy, result in tests:
+        rows += f'<tr><td style="color:{TEXT};font-weight:500;">{name}</td><td style="color:{MUTED};font-size:12px;">{strategy}</td><td style="color:{ROSE};font-family:monospace;font-size:12px;">{result}</td></tr>'
+    return f"""
+    <div class="arch-box" style="margin-bottom:16px;">
+        <h3 style="color:{GOLD};">12 Anti-Gaming Tests</h3>
+        <p style="color:{MUTED};font-size:13px;margin-bottom:10px;">Adversarial test suite proving the reward function is robust against common exploits.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><th style="text-align:left;color:{MUTED};font-size:10px;padding:6px 8px;border-bottom:1px solid {BORDER};">EXPLOIT</th>
+                <th style="text-align:left;color:{MUTED};font-size:10px;padding:6px 8px;border-bottom:1px solid {BORDER};">STRATEGY</th>
+                <th style="text-align:left;color:{MUTED};font-size:10px;padding:6px 8px;border-bottom:1px solid {BORDER};">RESULT</th></tr>
+            {rows}
+        </table>
+    </div>"""
+
+
 def _architecture_html() -> str:
     reward_items = [
         ("Classification Accuracy", "20%", "Correct risk category (prohibited / high_risk / limited_risk / minimal_risk)"),
@@ -500,6 +567,59 @@ def _architecture_html() -> str:
     </div>"""
 
 
+def _compliance_map_html() -> str:
+    """EU AI Act article coverage matrix — unique to compliance audit domain."""
+    mappings = [
+        ("Article 5", "Prohibited Practices", "classify_system", ["hard_social_scoring"]),
+        ("Article 6 + Annex III", "High-Risk Classification", "classify_system, assess_risk_management", ["medium_hiring", "medium_credit", "medium_medical", "hard_multi_system"]),
+        ("Article 9", "Risk Management", "assess_risk_management", ["medium_hiring", "medium_credit", "medium_medical"]),
+        ("Article 10", "Data Governance", "audit_training_data", ["medium_hiring", "medium_credit", "medium_medical", "hard_multi_system"]),
+        ("Article 12", "Record-Keeping", "check_logging", ["medium_hiring", "medium_medical", "hard_deepfake", "hard_multi_system"]),
+        ("Article 13", "Transparency (Deployers)", "check_transparency, check_documentation", ["medium_hiring", "medium_credit", "medium_medical"]),
+        ("Article 14", "Human Oversight", "verify_human_oversight", ["medium_hiring", "medium_credit", "medium_medical", "hard_multi_system"]),
+        ("Article 50", "Transparency (All AI)", "check_transparency", ["easy_chatbot", "hard_deepfake"]),
+        ("Annex IV", "Technical Documentation", "check_documentation", ["medium_hiring", "medium_credit", "medium_medical", "hard_deepfake"]),
+        ("MDR + AI Act", "Medical Device Dual-Regulation", "check_documentation, assess_risk_management", ["medium_medical"]),
+    ]
+
+    rows = ""
+    for article, title, tools_str, scenarios in mappings:
+        tool_badges = " ".join(
+            f'<span style="background:{AMBER}15;color:{AMBER};padding:2px 8px;border-radius:4px;font-size:10px;font-family:monospace;">{t.strip()}</span>'
+            for t in tools_str.split(",")
+        )
+        scenario_badges = " ".join(
+            f'<span style="background:{BLUE}15;color:{BLUE};padding:2px 6px;border-radius:4px;font-size:10px;">{s}</span>'
+            for s in scenarios
+        )
+        rows += f'''<tr>
+            <td style="padding:10px 8px;border-bottom:1px solid {BORDER}10;white-space:nowrap;">
+                <strong style="color:{GOLD};">{article}</strong><br/>
+                <span style="color:{MUTED};font-size:11px;">{title}</span>
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid {BORDER}10;">{tool_badges}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid {BORDER}10;">{scenario_badges}</td>
+        </tr>'''
+
+    return f"""<table style="width:100%;border-collapse:collapse;">
+        <tr>
+            <th style="text-align:left;color:{MUTED};font-size:10px;letter-spacing:0.06em;padding:8px;border-bottom:1px solid {BORDER};">ARTICLE</th>
+            <th style="text-align:left;color:{MUTED};font-size:10px;letter-spacing:0.06em;padding:8px;border-bottom:1px solid {BORDER};">INVESTIGATION TOOLS</th>
+            <th style="text-align:left;color:{MUTED};font-size:10px;letter-spacing:0.06em;padding:8px;border-bottom:1px solid {BORDER};">SCENARIOS</th>
+        </tr>
+        {rows}
+    </table>
+    <div style="margin-top:16px;padding:16px;background:{CARD};border:1px solid {BORDER};border-radius:10px;">
+        <h4 style="color:{GOLD};font-size:13px;margin-bottom:8px;">Cross-Document Reasoning Requirements</h4>
+        <div style="color:{MUTED};font-size:12px;line-height:1.8;">
+            <strong style="color:{TEXT};">Hiring Bias (5 findings):</strong> audit_training_data reveals 23% callback gap &rarr; verify_human_oversight shows only 5% review rate &rarr; check_documentation confirms missing FRIA &rarr; agent must connect all three<br/>
+            <strong style="color:{TEXT};">Social Scoring (5 findings):</strong> get_system_overview frames as "wellness app" &rarr; check_transparency reveals service access impact &rarr; verify_human_oversight shows municipal integration &rarr; agent must recognize Art. 5 violation<br/>
+            <strong style="color:{TEXT};">Multi-System (6 findings):</strong> audit_training_data reveals cross-system data flows &rarr; check_documentation shows missing combined DPIA &rarr; verify_human_oversight reveals no unified oversight &rarr; compound risk emerges across documents<br/>
+            <strong style="color:{TEXT};">Medical Triage (4 findings):</strong> audit_training_data shows age-bias in 75+ cohort &rarr; check_documentation confirms retrospective-only validation &rarr; check_logging reveals no real-time monitoring &rarr; safety gap pattern
+        </div>
+    </div>"""
+
+
 def _try_it_html() -> str:
     return f"""
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -550,18 +670,18 @@ def _pg_reset(difficulty: str) -> Tuple:
 
 def _pg_call(sid: str, tool_name: str, args_str: str) -> Tuple:
     if not sid:
-        return "Click Reset first", {"error": "No session"}
+        return "Click Reset first", "(no session)", {"error": "No session"}
     with _pg_lock:
         env = _pg_sessions.get(sid)
     if not env:
-        return "Session expired", {"error": "Session not found"}
+        return "Session expired", "(expired)", {"error": "Session not found"}
     fn = env._tool_fns.get(tool_name)
     if not fn:
-        return f"Unknown tool: {tool_name}", {"error": "Unknown tool"}
+        return f"Unknown tool: {tool_name}", "(error)", {"error": "Unknown tool"}
     try:
         kwargs = json.loads(args_str) if args_str and args_str.strip() else {}
     except json.JSONDecodeError:
-        return "Invalid JSON", {"error": "Bad JSON in arguments"}
+        return "Invalid JSON", "(error)", {"error": "Bad JSON in arguments"}
     try:
         result = fn(**kwargs)
         parsed = json.loads(result) if isinstance(result, str) else result
@@ -571,9 +691,32 @@ def _pg_call(sid: str, tool_name: str, args_str: str) -> Tuple:
         status = f"Queries: {queries}/100 | Findings: {len(env._findings_submitted)} | Done: {done}"
         if done:
             status += f" | REWARD: {reward:.4f}"
-        return status, parsed
+
+        # Extract document content for rich display
+        doc_content = parsed.get("content", "")
+        if not doc_content and "audit_summary" in parsed:
+            # Verify compliance result — format nicely
+            summary = parsed["audit_summary"]
+            lines = [f"AUDIT COMPLETE — Reward: {parsed.get('reward', 0):.4f}"]
+            lines.append(f"\nClassification: {summary['classification']['submitted']} "
+                        f"({'correct' if summary['classification']['match'] == 'exact' else summary['classification']['match']})")
+            lines.append(f"Correct answer: {summary['classification']['correct']}")
+            lines.append(f"\nFindings: {summary['findings']['matched']}/{summary['findings']['ground_truth_total']} matched")
+            if summary["findings"]["missed"]:
+                lines.append("Missed:")
+                for m in summary["findings"]["missed"]:
+                    lines.append(f"  - {m}")
+            lines.append(f"\nAreas investigated: {', '.join(summary.get('areas_investigated', []))}")
+            lines.append(f"\nReward breakdown:")
+            for k, v in parsed.get("reward_breakdown", {}).items():
+                lines.append(f"  {k}: {v}")
+            doc_content = "\n".join(lines)
+        elif not doc_content:
+            doc_content = json.dumps(parsed, indent=2)
+
+        return status, doc_content, parsed
     except Exception as e:
-        return f"Error: {e}", {"error": str(e)}
+        return f"Error: {e}", str(e), {"error": str(e)}
 
 
 # ── Build the Gradio app ────────────────────────────────────────
@@ -620,13 +763,13 @@ def create_landing_app() -> gr.Blocks:
             # ── TAB 4: Playground ──
             with gr.Tab("Playground"):
                 gr.HTML(f"<h2>Interactive Audit</h2>")
-                gr.HTML(f'<p style="color:{MUTED};margin-bottom:12px;">Reset to start a session, then call tools in sequence. The environment tracks your audit state and scores your methodology.</p>')
+                gr.HTML(f'<p style="color:{MUTED};margin-bottom:12px;">Reset to start a session, then call tools in sequence. The environment tracks your audit state and scores your methodology. Documents render below — this is what the agent sees.</p>')
 
                 session_state = gr.State(value=None)
                 pg_status = gr.Textbox(label="Status", interactive=False, value="Click Reset to begin")
 
                 with gr.Row(elem_classes="pg-row"):
-                    pg_diff = gr.Dropdown(choices=["easy", "medium", "hard"], value="easy", label="Difficulty")
+                    pg_diff = gr.Dropdown(choices=["easy", "medium", "hard"], value="medium", label="Difficulty")
                     pg_reset_btn = gr.Button("Reset", variant="primary", min_width=120)
 
                 with gr.Row(elem_classes="pg-row"):
@@ -634,25 +777,37 @@ def create_landing_app() -> gr.Blocks:
                     pg_args = gr.Textbox(label="Arguments (JSON)", placeholder='{"risk_category": "high_risk"}')
                     pg_call_btn = gr.Button("Call Tool", variant="secondary", min_width=120)
 
-                pg_result = gr.JSON(label="Result")
+                pg_doc = gr.Textbox(label="Document Content (what the agent sees)", lines=20, interactive=False)
+
+                with gr.Accordion("Raw JSON Response", open=False):
+                    pg_result = gr.JSON(label="Raw")
 
                 def _on_reset(diff):
                     sid, status, obs = _pg_reset(diff)
-                    return sid, status, obs
+                    initial_doc = obs.get("message", "Session started. Call get_system_overview to begin.")
+                    return sid, status, initial_doc, obs
 
                 def _on_call(sid, tool, args):
-                    status, result = _pg_call(sid, tool, args)
-                    return status, result
+                    status, doc_content, result = _pg_call(sid, tool, args)
+                    return status, doc_content, result
 
-                pg_reset_btn.click(_on_reset, [pg_diff], [session_state, pg_status, pg_result])
-                pg_call_btn.click(_on_call, [session_state, pg_tool, pg_args], [pg_status, pg_result])
+                pg_reset_btn.click(_on_reset, [pg_diff], [session_state, pg_status, pg_doc, pg_result])
+                pg_call_btn.click(_on_call, [session_state, pg_tool, pg_args], [pg_status, pg_doc, pg_result])
 
             # ── TAB 5: Architecture ──
             with gr.Tab("Architecture"):
                 gr.HTML(f"<h2>Environment Architecture</h2>")
+                gr.HTML(_investigation_depth_html())
+                gr.HTML(_antigaming_html())
                 gr.HTML(_architecture_html())
 
-            # ── TAB 6: Try It ──
+            # ── TAB 6: Compliance Map ──
+            with gr.Tab("Compliance Map"):
+                gr.HTML(f"<h2>EU AI Act Article Coverage</h2>")
+                gr.HTML(f'<p style="color:{MUTED};margin-bottom:16px;">How each investigation tool maps to EU AI Act provisions, and which scenarios test each article.</p>')
+                gr.HTML(_compliance_map_html())
+
+            # ── TAB 7: Try It ──
             with gr.Tab("Try It"):
                 gr.HTML(f"<h2>Run the baseline yourself</h2>")
                 gr.HTML(_try_it_html())

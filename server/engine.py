@@ -149,13 +149,21 @@ class AuditScenario:
     required_remediation: List[str] = field(default_factory=list)
     red_herrings: List[str] = field(default_factory=list)
 
-    # Tool-specific data (returned when agent calls tools)
-    documentation_data: Dict[str, Any] = field(default_factory=dict)
-    training_data_info: Dict[str, Any] = field(default_factory=dict)
-    oversight_info: Dict[str, Any] = field(default_factory=dict)
-    transparency_info: Dict[str, Any] = field(default_factory=dict)
-    risk_assessment_info: Dict[str, Any] = field(default_factory=dict)
-    logging_info: Dict[str, Any] = field(default_factory=dict)
+    # Investigation documents (rich text requiring analysis — no pre-digested verdicts)
+    documentation_data: str = ""
+    training_data_info: str = ""
+    oversight_info: str = ""
+    transparency_info: str = ""
+    risk_assessment_info: str = ""
+    logging_info: str = ""
+
+    # Deep-dive documents (revealed on repeat tool calls — adaptive depth)
+    deep_documentation: str = ""
+    deep_training_data: str = ""
+    deep_oversight: str = ""
+    deep_transparency: str = ""
+    deep_risk_assessment: str = ""
+    deep_logging: str = ""
 
     # Randomization parameters (re-rolled on each reset)
     _rand_params: Dict[str, str] = field(default_factory=dict)
@@ -176,6 +184,9 @@ class AuditScenario:
             "company": rng.choice(company_names),
             "region": rng.choice(regions),
             "version": rng.choice(versions),
+            "date": f"2026-{rng.randint(1,3):02d}-{rng.randint(1,28):02d}",
+            "usercount": f"{rng.randint(10000, 5000000):,}",
+            # Keep old keys for backwards compat with get_param()
             "deployment_date": f"2026-{rng.randint(1,3):02d}-{rng.randint(1,28):02d}",
             "user_count": str(rng.randint(10000, 5000000)),
         }

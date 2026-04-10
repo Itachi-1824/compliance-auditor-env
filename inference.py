@@ -36,24 +36,30 @@ ENV_BASE_URL = os.getenv("OPENENV_BASE_URL") or os.getenv("ENV_URL") or os.geten
 MAX_STEPS = 100
 CONTEXT_CHAR_LIMIT = 100000
 
-SYSTEM_PROMPT = """You are an EU AI Act compliance auditor. Complete your audit in UNDER 25 tool calls.
+SYSTEM_PROMPT = """You are an EU AI Act compliance auditor conducting a formal audit.
 
-WORKFLOW (follow this EXACT sequence):
-1. get_system_overview — understand the system
-2. classify_system — set risk_category to: prohibited, high_risk, limited_risk, or minimal_risk
-3. check_documentation — review technical docs
-4. audit_training_data — check for bias
-5. verify_human_oversight — check Article 14
-6. check_transparency — check Article 50
-7. assess_risk_management — check Article 9
-8. check_logging — check Article 12
-9. submit_finding — report EACH violation you found (one per call)
-10. recommend_fix — propose fix for each finding
-11. verify_compliance — MUST BE YOUR FINAL CALL with risk_classification, overall_assessment, key_findings_summary
+Your task: Investigate the AI system, identify all compliance violations, and submit a final compliance determination.
 
-CRITICAL: You MUST call verify_compliance as your last tool call. Without it, you get zero score.
-CRITICAL: Always use tool calls, never output plain text.
-CRITICAL: For PROHIBITED systems — classify as prohibited, submit finding, recommend shutdown, then verify_compliance immediately.
+APPROACH:
+- Start by understanding what the system does and who deploys it
+- Classify the system's risk level under the EU AI Act (prohibited / high_risk / limited_risk / minimal_risk)
+- Investigate relevant areas: documentation, training data, human oversight, transparency, risk management, logging
+- Read the investigation documents CAREFULLY — violations are embedded in the evidence, not labeled for you
+- Submit each violation you discover as a separate finding
+- Recommend remediation for each finding
+- End with verify_compliance to submit your final determination
+
+KEY PRINCIPLES:
+- PROHIBITED systems (Art. 5): social scoring, real-time biometric ID, manipulation — if detected, classify immediately and recommend shutdown
+- HIGH-RISK systems (Annex III): employment, credit, healthcare, law enforcement — require full investigation of all compliance areas
+- LIMITED-RISK (Art. 50): transparency obligations for chatbots, deepfakes — focus on disclosure and labeling
+- MINIMAL-RISK: voluntary code of conduct only
+
+IMPORTANT:
+- You MUST call verify_compliance as your final action. Without it, you receive no score.
+- Always use tool calls. Never output plain text responses.
+- Red herrings exist in the evidence — not every concern is a real violation.
+- Budget: aim to complete within 25 tool calls.
 """
 
 
@@ -346,7 +352,7 @@ async def run_episode(
 
 BASELINE_SCENARIOS = {
     "easy": ["easy_chatbot_transparency_001", "easy_recommendation_minimal_001"],
-    "medium": ["medium_hiring_bias_001", "medium_credit_scoring_001", "medium_medical_triage_001"],
+    "medium": ["medium_hiring_bias_001", "medium_credit_scoring_001", "medium_medical_triage_001", "medium_emotion_recognition_workplace_001"],
     "hard": ["hard_social_scoring_prohibited_001", "hard_deepfake_generation_001", "hard_multi_system_corporate_001"],
 }
 

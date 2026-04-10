@@ -6,11 +6,23 @@ app: server.app:app
 port: 7860
 tasks:
   - id: easy
-    name: "Easy — Chatbot & Recommendation compliance"
+    name: "Easy — Chatbot Transparency & Recommendation Classification"
     grader: server.engine.compute_reward
+    scenarios:
+      - easy_chatbot_transparency_001
+      - easy_recommendation_minimal_001
   - id: medium
-    name: "Medium — Hiring AI, Credit Scoring, Medical Triage"
+    name: "Medium — Hiring Bias, Credit Scoring, Medical Triage, Emotion Recognition"
     grader: server.engine.compute_reward
+    scenarios:
+      - medium_hiring_bias_001
+      - medium_credit_scoring_001
+      - medium_medical_triage_001
+      - medium_emotion_recognition_workplace_001
   - id: hard
-    name: "Hard — Prohibited Systems, Deepfake, Multi-System Audit"
+    name: "Hard — Prohibited Social Scoring, Deepfake Compliance, Multi-System Audit"
     grader: server.engine.compute_reward
+    scenarios:
+      - hard_social_scoring_prohibited_001
+      - hard_deepfake_generation_001
+      - hard_multi_system_corporate_001

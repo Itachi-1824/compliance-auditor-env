@@ -156,19 +156,60 @@ import base64
 
 
 def _build_mermaid(scenario_id: str) -> str:
-    """Build a Mermaid graph LR diagram for the audit state graph."""
+    """Build a compact Mermaid graph TD for the audit state graph."""
     sc = get_scenario(scenario_id, seed=1)
     g = sc.graph
 
-    lines = ["graph LR"]
-    lines.append(f'    classDef start fill:#F43F5E,stroke:#F43F5E,color:#fff')
-    lines.append(f'    classDef progress fill:#10B981,stroke:#10B981,color:#fff')
-    lines.append(f'    classDef terminal fill:#10B981,stroke:#C9A84C,color:#fff,stroke-width:3px')
-    lines.append(f'    classDef trap fill:#F43F5E,stroke:#F43F5E,color:#fff,stroke-dasharray:5 5')
+    # Short label map for readability
+    _short = {
+        "initial": "Start",
+        "overview": "Overview",
+        "classified": "Classified",
+        "docs_reviewed": "Docs",
+        "data_audited": "Data",
+        "oversight_checked": "Oversight",
+        "transparency_checked": "Transparency",
+        "risk_assessed": "Risk Mgmt",
+        "logging_checked": "Logging",
+        "findings_submitted": "Findings",
+        "remediation_proposed": "Remediation",
+        "resolved": "Verified",
+    }
 
-    # Add nodes
-    for node_id, node in g.nodes.items():
-        label = node.label.replace('"', "'")
+    # Short tool names
+    _tool_short = {
+        "get_system_overview": "overview",
+        "classify_system": "classify",
+        "check_documentation": "docs",
+        "audit_training_data": "data",
+        "verify_human_oversight": "oversight",
+        "check_transparency": "transparency",
+        "assess_risk_management": "risk",
+        "check_logging": "logging",
+        "submit_finding": "finding",
+        "recommend_fix": "fix",
+        "verify_compliance": "verify",
+    }
+
+    lines = ["graph TD"]
+    lines.append("    classDef start fill:#F43F5E,stroke:#F43F5E,color:#fff")
+    lines.append("    classDef progress fill:#10B981,stroke:#10B981,color:#fff")
+    lines.append("    classDef terminal fill:#C9A84C,stroke:#C9A84C,color:#fff,stroke-width:3px")
+
+    # Only show progress path nodes (skip trap/no_effect destinations)
+    progress_nodes = set()
+    progress_edges = []
+    for t in g.transitions:
+        if t.outcome == "progress":
+            progress_nodes.add(t.from_state)
+            progress_nodes.add(t.to_state)
+            progress_edges.append(t)
+
+    for node_id in progress_nodes:
+        node = g.nodes.get(node_id)
+        if not node:
+            continue
+        label = _short.get(node_id, node.label)
         if node.is_start:
             lines.append(f'    {node_id}["{label}"]:::start')
         elif node.is_terminal:
@@ -176,12 +217,9 @@ def _build_mermaid(scenario_id: str) -> str:
         else:
             lines.append(f'    {node_id}["{label}"]:::progress')
 
-    # Add progress edges (green)
-    for t in g.transitions:
-        if t.outcome == "progress":
-            lines.append(f'    {t.from_state} -->|{t.tool_name}| {t.to_state}')
-        elif t.outcome == "worsened":
-            lines.append(f'    {t.from_state} -.->|"trap: {t.tool_name}"| {t.to_state}')
+    for t in progress_edges:
+        tool = _tool_short.get(t.tool_name, t.tool_name)
+        lines.append(f'    {t.from_state} -->|{tool}| {t.to_state}')
 
     return "\n".join(lines)
 

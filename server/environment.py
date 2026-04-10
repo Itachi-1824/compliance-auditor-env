@@ -220,12 +220,14 @@ class ComplianceAuditorEnvironment(Environment):
         self._observation_after_investigation = 0
         self._remediation_count = 0
 
+        deployer = self._render_doc(self._scenario.deployer_info)
+        desc = self._render_doc(self._scenario.description)
         alert = (
             f"COMPLIANCE AUDIT ASSIGNED\n\n"
             f"System: {self._scenario.system_name}\n"
             f"Difficulty: {self._scenario.difficulty.upper()}\n"
-            f"Deployer: {self._scenario.deployer_info}\n\n"
-            f"{self._scenario.description}\n\n"
+            f"Deployer: {deployer}\n\n"
+            f"{desc}\n\n"
             f"Use get_system_overview to begin your investigation. "
             f"You have {QUERY_BUDGET} tool calls available."
         )

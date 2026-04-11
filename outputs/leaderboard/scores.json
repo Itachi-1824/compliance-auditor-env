@@ -2,37 +2,210 @@
   {
     "model": "stepfun-ai/step-3.5-flash",
     "scores": {
-      "easy_chatbot_transparency_001": 0.473,
-      "medium_hiring_bias_001": 0.425,
-      "hard_social_scoring_prohibited_001": 0.404
+      "easy_chatbot_transparency_001": 0.4136,
+      "easy_recommendation_minimal_001": 0.4278,
+      "medium_hiring_bias_001": 0.4249,
+      "medium_credit_scoring_001": 0.4333,
+      "medium_medical_triage_001": 0.3909,
+      "medium_emotion_recognition_workplace_001": 0.4,
+      "hard_social_scoring_prohibited_001": 0.2738,
+      "hard_deepfake_generation_001": 0.2709,
+      "hard_multi_system_corporate_001": 0.3909
     },
-    "overall": 0.434
+    "overall": 0.3807,
+    "tier_averages": {
+      "easy": 0.4207,
+      "medium": 0.4123,
+      "hard": 0.3119
+    },
+    "elapsed_seconds": 4384.2
   },
   {
-    "model": "mistralai/mistral-small-4-119b-2603",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
     "scores": {
-      "easy_chatbot_transparency_001": 0.457,
-      "medium_hiring_bias_001": 0.425,
-      "hard_social_scoring_prohibited_001": 0.348
+      "easy_chatbot_transparency_001": 0.4136,
+      "easy_recommendation_minimal_001": 0.4125,
+      "medium_hiring_bias_001": 0.373,
+      "medium_credit_scoring_001": 0.418,
+      "medium_medical_triage_001": 0.4417,
+      "medium_emotion_recognition_workplace_001": 0.3775,
+      "hard_social_scoring_prohibited_001": 0.2675,
+      "hard_deepfake_generation_001": 0.4372,
+      "hard_multi_system_corporate_001": 0.1544
     },
-    "overall": 0.41
+    "overall": 0.3662,
+    "tier_averages": {
+      "easy": 0.4131,
+      "medium": 0.4025,
+      "hard": 0.2864
+    },
+    "elapsed_seconds": 6631.9
   },
   {
     "model": "deepseek-ai/deepseek-v3.1",
     "scores": {
-      "easy_chatbot_transparency_001": 0.442,
-      "medium_hiring_bias_001": 0.425,
-      "hard_social_scoring_prohibited_001": 0.348
+      "easy_chatbot_transparency_001": 0.3813,
+      "easy_recommendation_minimal_001": 0.4278,
+      "medium_hiring_bias_001": 0.3049,
+      "medium_credit_scoring_001": 0.4048,
+      "medium_medical_triage_001": 0.4132,
+      "medium_emotion_recognition_workplace_001": 0.4058,
+      "hard_social_scoring_prohibited_001": 0.4019,
+      "hard_deepfake_generation_001": 0.2824,
+      "hard_multi_system_corporate_001": 0.2147
     },
-    "overall": 0.405
+    "overall": 0.3596,
+    "tier_averages": {
+      "easy": 0.4045,
+      "medium": 0.3822,
+      "hard": 0.2997
+    },
+    "elapsed_seconds": 10985.9
   },
   {
-    "model": "moonshotai/kimi-k2.5",
+    "model": "mistralai/mistral-large-3-675b-instruct-2512",
     "scores": {
-      "easy_chatbot_transparency_001": 0.43,
-      "medium_hiring_bias_001": 0.015,
-      "hard_social_scoring_prohibited_001": 0.402
+      "easy_chatbot_transparency_001": 0.375,
+      "easy_recommendation_minimal_001": 0.4278,
+      "medium_hiring_bias_001": 0.4249,
+      "medium_credit_scoring_001": 0.407,
+      "medium_medical_triage_001": 0.4024,
+      "medium_emotion_recognition_workplace_001": 0.3,
+      "hard_social_scoring_prohibited_001": 0.24,
+      "hard_deepfake_generation_001": 0.2711,
+      "hard_multi_system_corporate_001": 0.2045
     },
-    "overall": 0.282
+    "overall": 0.3392,
+    "tier_averages": {
+      "easy": 0.4014,
+      "medium": 0.3836,
+      "hard": 0.2385
+    },
+    "elapsed_seconds": 5949.4
+  },
+  {
+    "model": "meta/llama-3.3-70b-instruct",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.3975,
+      "easy_recommendation_minimal_001": 0.22,
+      "medium_hiring_bias_001": 0.3384,
+      "medium_credit_scoring_001": 0.4017,
+      "medium_medical_triage_001": 0.306,
+      "medium_emotion_recognition_workplace_001": 0.36,
+      "hard_social_scoring_prohibited_001": 0.4037,
+      "hard_deepfake_generation_001": 0.2139,
+      "hard_multi_system_corporate_001": 0.306
+    },
+    "overall": 0.3275,
+    "tier_averages": {
+      "easy": 0.3088,
+      "medium": 0.3515,
+      "hard": 0.3079
+    },
+    "elapsed_seconds": 2579.2
+  },
+  {
+    "model": "mistralai/mistral-small-4-119b-2603",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.2242,
+      "easy_recommendation_minimal_001": 0.42,
+      "medium_hiring_bias_001": 0.2881,
+      "medium_credit_scoring_001": 0.2912,
+      "medium_medical_triage_001": 0.4083,
+      "medium_emotion_recognition_workplace_001": 0.3531,
+      "hard_social_scoring_prohibited_001": 0.2507,
+      "hard_deepfake_generation_001": 0.2658,
+      "hard_multi_system_corporate_001": 0.2602
+    },
+    "overall": 0.3068,
+    "tier_averages": {
+      "easy": 0.3221,
+      "medium": 0.3352,
+      "hard": 0.2589
+    }
+  },
+  {
+    "model": "qwen/qwen3.5-122b-a10b",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.0871,
+      "easy_recommendation_minimal_001": 0.0071,
+      "medium_hiring_bias_001": 0.2045,
+      "medium_credit_scoring_001": 0.205,
+      "medium_medical_triage_001": 0.2045,
+      "medium_emotion_recognition_workplace_001": 0.09,
+      "hard_social_scoring_prohibited_001": 0.09,
+      "hard_deepfake_generation_001": 0.0845,
+      "hard_multi_system_corporate_001": 0.2045
+    },
+    "overall": 0.1308,
+    "tier_averages": {
+      "easy": 0.0471,
+      "medium": 0.176,
+      "hard": 0.1263
+    },
+    "elapsed_seconds": 47.1
+  },
+  {
+    "model": "meta/llama-4-maverick-17b-128e-instruct",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.0871,
+      "easy_recommendation_minimal_001": 0.0071,
+      "medium_hiring_bias_001": 0.2045,
+      "medium_credit_scoring_001": 0.205,
+      "medium_medical_triage_001": 0.2045,
+      "medium_emotion_recognition_workplace_001": 0.09,
+      "hard_social_scoring_prohibited_001": 0.09,
+      "hard_deepfake_generation_001": 0.0845,
+      "hard_multi_system_corporate_001": 0.2045
+    },
+    "overall": 0.1308,
+    "tier_averages": {
+      "easy": 0.0471,
+      "medium": 0.176,
+      "hard": 0.1263
+    },
+    "elapsed_seconds": 487.1
+  },
+  {
+    "model": "google/gemma-4-31b-it",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.0871,
+      "easy_recommendation_minimal_001": 0.0071,
+      "medium_hiring_bias_001": 0.2045,
+      "medium_credit_scoring_001": 0.205,
+      "medium_medical_triage_001": 0.2045,
+      "medium_emotion_recognition_workplace_001": 0.09,
+      "hard_social_scoring_prohibited_001": 0.09,
+      "hard_deepfake_generation_001": 0.0845,
+      "hard_multi_system_corporate_001": 0.2045
+    },
+    "overall": 0.1308,
+    "tier_averages": {
+      "easy": 0.0471,
+      "medium": 0.176,
+      "hard": 0.1263
+    },
+    "elapsed_seconds": 713.6
+  },
+  {
+    "model": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+    "scores": {
+      "easy_chatbot_transparency_001": 0.0871,
+      "easy_recommendation_minimal_001": 0.0071,
+      "medium_hiring_bias_001": 0.2045,
+      "medium_credit_scoring_001": 0.205,
+      "medium_medical_triage_001": 0.2045,
+      "medium_emotion_recognition_workplace_001": 0.09,
+      "hard_social_scoring_prohibited_001": 0.09,
+      "hard_deepfake_generation_001": 0.0845,
+      "hard_multi_system_corporate_001": 0.2045
+    },
+    "overall": 0.1308,
+    "tier_averages": {
+      "easy": 0.0471,
+      "medium": 0.176,
+      "hard": 0.1263
+    },
+    "elapsed_seconds": 856.7
   }
 ]

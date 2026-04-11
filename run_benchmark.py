@@ -1,4 +1,7 @@
-"""Quick benchmark runner — 10 models across 3 keys in parallel."""
+"""
+Leaderboard benchmark — 10 models, 3 NIM keys, parallel execution.
+Resilient to network errors with retries per episode.
+"""
 import asyncio
 import json
 import os
@@ -6,125 +9,116 @@ import sys
 import time
 from pathlib import Path
 
-# Set keys before imports
-KEYS = [
-    "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",
-    "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",
-    "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",
-]
-
-API_BASE = "https://integrate.api.nvidia.com/v1"
-SPACE_URL = "https://Itachi1824-compliance-auditor-env.hf.space"
-
-# 10 models distributed across 3 keys
-GROUPS = [
-    # Key 1
-    [
-        "stepfun-ai/step-3.5-flash",
-        "deepseek-ai/deepseek-v3.1",
-        "qwen/qwen3.5-122b-a10b",
-    ],
-    # Key 2
-    [
-        "meta/llama-4-maverick-17b-128e-instruct",
-        "google/gemma-4-31b-it",
-        "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-        "meta/llama-4-scout-17b-16e-instruct",
-    ],
-    # Key 3
-    [
-        "mistralai/mistral-large-3-675b-instruct-2512",
-        "nvidia/nemotron-3-super-120b-a12b",
-        "meta/llama-3.3-70b-instruct",
-    ],
-]
-
-SCENARIOS = [
-    ("easy_chatbot_transparency_001", "easy"),
-    ("easy_recommendation_minimal_001", "easy"),
-    ("medium_hiring_bias_001", "medium"),
-    ("medium_credit_scoring_001", "medium"),
-    ("medium_medical_triage_001", "medium"),
-    ("medium_emotion_recognition_workplace_001", "medium"),
-    ("hard_social_scoring_prohibited_001", "hard"),
-    ("hard_deepfake_generation_001", "hard"),
-    ("hard_multi_system_corporate_001", "hard"),
-]
-
 from openai import OpenAI
 from client import ComplianceAuditorHTTP
 from inference import run_episode, mcp_tools_to_openai
+from scenarios.registry import SCENARIO_LIST
+
+API_BASE = "https://integrate.api.nvidia.com/v1"
+SPACE_URL = "https://Itachi1824-compliance-auditor-env.hf.space"
+MAX_RETRIES = 2
+
+KEYS = {
+    1: os.environ.get("NVIDIA_API_KEY_1", ""),
+    2: os.environ.get("NVIDIA_API_KEY_2", ""),
+    3: os.environ.get("NVIDIA_API_KEY_3", ""),
+}
+
+GROUPS = [
+    # Key 1
+    ["stepfun-ai/step-3.5-flash", "deepseek-ai/deepseek-v3.1", "qwen/qwen3.5-122b-a10b"],
+    # Key 2
+    ["meta/llama-4-maverick-17b-128e-instruct", "google/gemma-4-31b-it", "nvidia/llama-3.1-nemotron-ultra-253b-v1", "meta/llama-4-scout-17b-16e-instruct"],
+    # Key 3
+    ["mistralai/mistral-large-3-675b-instruct-2512", "nvidia/nemotron-3-super-120b-a12b", "meta/llama-3.3-70b-instruct"],
+]
+
+SCENARIOS = [(s["id"], s["difficulty"]) for s in SCENARIO_LIST if not s["id"].startswith("procedural")]
 
 
-async def run_model(model: str, api_key: str, tools: list) -> dict:
-    """Run all scenarios for one model."""
+async def run_one_episode(model, api_key, tools, sid, diff):
+    """Run one episode with retries."""
     llm = OpenAI(base_url=API_BASE, api_key=api_key, timeout=120.0)
-    scores = {}
-    for sid, diff in SCENARIOS:
+    for attempt in range(MAX_RETRIES + 1):
         try:
             async with ComplianceAuditorHTTP(base_url=SPACE_URL) as env:
                 result = await run_episode(env, llm, model, tools, diff, sid)
                 score = max(0.001, min(0.999, result.get("reward", 0.01)))
-                scores[sid] = round(score, 4)
-                short = model.split("/")[-1][:25]
-                print(f"  {short:25s} | {sid:50s} | {score:.4f}", flush=True)
+                return round(score, 4)
         except Exception as e:
-            scores[sid] = 0.01
-            short = model.split("/")[-1][:25]
-            print(f"  {short:25s} | {sid:50s} | ERROR: {str(e)[:60]}", flush=True)
-        await asyncio.sleep(2)  # rate limit
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(3)
+                continue
+            return 0.01
+
+
+async def run_model(model, api_key, tools, progress):
+    """Run all scenarios for one model."""
+    short = model.split("/")[-1][:28]
+    scores = {}
+    for sid, diff in SCENARIOS:
+        score = await run_one_episode(model, api_key, tools, sid, diff)
+        scores[sid] = score
+        progress["done"] += 1
+        total = progress["total"]
+        pct = progress["done"] / total * 100
+        print(f"  [{pct:5.1f}%] {short:28s} | {sid:50s} | {score:.4f}", flush=True)
+        await asyncio.sleep(1.5)
     return scores
 
 
-async def run_group(models: list, api_key: str, tools: list) -> list:
-    """Run all models in a group sequentially (same key)."""
-    results = []
+async def run_group(group_idx, models, api_key, tools, progress):
+    """Run all models in a key group sequentially."""
+    if not api_key:
+        print(f"  Key {group_idx+1} not set — skipping {len(models)} models", flush=True)
+        return []
+    entries = []
     for model in models:
-        print(f"\n--- {model} ---", flush=True)
-        start = time.time()
-        scores = await run_model(model, api_key, tools)
-        elapsed = time.time() - start
+        short = model.split("/")[-1][:28]
+        print(f"\n{'='*70}\n  KEY {group_idx+1} | {model}\n{'='*70}", flush=True)
+        t0 = time.time()
+        scores = await run_model(model, api_key, tools, progress)
+        elapsed = time.time() - t0
 
-        all_scores = list(scores.values())
-        avg = sum(all_scores) / len(all_scores) if all_scores else 0
-
-        tier_scores = {"easy": [], "medium": [], "hard": []}
+        all_s = list(scores.values())
+        avg = sum(all_s) / len(all_s) if all_s else 0
+        tiers = {"easy": [], "medium": [], "hard": []}
         for sid, diff in SCENARIOS:
             if sid in scores:
-                tier_scores[diff].append(scores[sid])
+                tiers[diff].append(scores[sid])
+        tier_avgs = {t: (sum(v)/len(v) if v else 0) for t, v in tiers.items()}
 
-        tier_avgs = {t: (sum(s)/len(s) if s else 0) for t, s in tier_scores.items()}
-
-        results.append({
+        entries.append({
             "model": model,
             "scores": scores,
             "overall": round(avg, 4),
             "tier_averages": {k: round(v, 4) for k, v in tier_avgs.items()},
             "elapsed_seconds": round(elapsed, 1),
         })
-        print(f"  OVERALL: {avg:.4f} | easy={tier_avgs['easy']:.4f} medium={tier_avgs['medium']:.4f} hard={tier_avgs['hard']:.4f} | {elapsed:.0f}s", flush=True)
-    return results
+        print(f"  DONE: {short:28s} | overall={avg:.4f} | e={tier_avgs['easy']:.4f} m={tier_avgs['medium']:.4f} h={tier_avgs['hard']:.4f} | {elapsed:.0f}s", flush=True)
+    return entries
 
 
 async def main():
-    print(f"Benchmarking 10 models against {SPACE_URL}", flush=True)
-    print(f"Scenarios: {len(SCENARIOS)}", flush=True)
+    total_models = sum(len(g) for g in GROUPS)
+    total_episodes = total_models * len(SCENARIOS)
+    print(f"Benchmarking {total_models} models x {len(SCENARIOS)} scenarios = {total_episodes} episodes", flush=True)
+    print(f"Space: {SPACE_URL}", flush=True)
 
     # Discover tools
     async with ComplianceAuditorHTTP(base_url=SPACE_URL) as env:
         await env.reset(difficulty="easy")
-        tools_raw = await env.list_tools()
-        tools = mcp_tools_to_openai(tools_raw)
-    print(f"Tools: {len(tools)}", flush=True)
+        tools = mcp_tools_to_openai(await env.list_tools())
+    print(f"Tools: {len(tools)}\n", flush=True)
+
+    progress = {"done": 0, "total": total_episodes}
 
     # Run 3 groups in parallel
-    tasks = [run_group(GROUPS[i], KEYS[i], tools) for i in range(3)]
-    group_results = await asyncio.gather(*tasks)
+    tasks = [run_group(i, GROUPS[i], KEYS[i+1], tools, progress) for i in range(3)]
+    results = await asyncio.gather(*tasks)
 
     # Flatten + sort
-    all_entries = []
-    for gr in group_results:
-        all_entries.extend(gr)
+    all_entries = [e for group in results for e in group]
     all_entries.sort(key=lambda e: e["overall"], reverse=True)
 
     # Save
@@ -137,8 +131,8 @@ async def main():
     print("FINAL LEADERBOARD", flush=True)
     print(f"{'='*70}", flush=True)
     for i, e in enumerate(all_entries, 1):
-        m = e["model"].split("/")[-1][:30]
-        print(f"  {i:2d}. {m:30s} | {e['overall']:.4f} | e={e['tier_averages']['easy']:.4f} m={e['tier_averages']['medium']:.4f} h={e['tier_averages']['hard']:.4f}", flush=True)
+        m = e["model"].split("/")[-1][:28]
+        print(f"  {i:2d}. {m:28s} | {e['overall']:.4f} | e={e['tier_averages']['easy']:.4f} m={e['tier_averages']['medium']:.4f} h={e['tier_averages']['hard']:.4f}", flush=True)
     print(f"\nSaved to {out}", flush=True)
 
 

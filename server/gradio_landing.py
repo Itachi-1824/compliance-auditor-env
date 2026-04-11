@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Tuple
 
 import gradio as gr
 
-from server.environment import ComplianceAuditorEnvironment
+from server.environment import ComplianceAuditorEnvironment, QUERY_BUDGET
 from scenarios.registry import SCENARIO_LIST, DIFFICULTY_TIERS, get_scenario
 
 # ── Color system ────────────────────────────────────────────────
@@ -561,7 +561,7 @@ def _architecture_html() -> str:
             </div>
             <p style="color:{MUTED};font-size:12px;margin-top:12px;">
                 Wrong tool order &rarr; worsened state transition. Skipping investigation &rarr; methodology penalty.
-                Investigating red herrings &rarr; precision penalty. Budget: 100 queries per episode.
+                Investigating red herrings &rarr; precision penalty. Budget: 500 queries per episode.
             </p>
         </div>
     </div>"""
@@ -731,7 +731,7 @@ def _pg_reset(scenario_id: str) -> Tuple:
     status_html = (
         f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">'
         f'<div class="stat"><div class="val" style="font-size:1.2em;">{sc.scenario_id.split("_")[0].upper()}</div><div class="label">DIFFICULTY</div></div>'
-        f'<div class="stat"><div class="val" style="font-size:1.2em;">0/100</div><div class="label">QUERIES</div></div>'
+        f'<div class="stat"><div class="val" style="font-size:1.2em;">0/{QUERY_BUDGET}</div><div class="label">QUERIES</div></div>'
         f'<div class="stat"><div class="val" style="font-size:1.2em;">0</div><div class="label">FINDINGS</div></div>'
         f'<div class="stat"><div class="val" style="font-size:1.2em;">0</div><div class="label">REMEDIATIONS</div></div>'
         f'<div class="stat"><div class="val" style="font-size:1.2em;color:{MUTED};">—</div><div class="label">REWARD</div></div>'
@@ -777,7 +777,7 @@ def _pg_call(sid: str, tool_name: str, args_str: str) -> Tuple:
         status_html = (
             f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">'
             f'<div class="stat"><div class="val" style="font-size:1.2em;">{done_indicator}</div><div class="label">STATUS</div></div>'
-            f'<div class="stat"><div class="val" style="font-size:1.2em;">{queries}/100</div><div class="label">QUERIES</div></div>'
+            f'<div class="stat"><div class="val" style="font-size:1.2em;">{queries}/{QUERY_BUDGET}</div><div class="label">QUERIES</div></div>'
             f'<div class="stat"><div class="val" style="font-size:1.2em;">{findings_n}</div><div class="label">FINDINGS</div></div>'
             f'<div class="stat"><div class="val" style="font-size:1.2em;">{remed_n}</div><div class="label">REMEDIATIONS</div></div>'
             f'<div class="stat"><div class="val" style="font-size:1.2em;color:{reward_color};">{reward_display}</div><div class="label">REWARD</div></div>'

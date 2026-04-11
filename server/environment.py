@@ -45,7 +45,7 @@ except ImportError:
     )
 
 
-QUERY_BUDGET = 200  # Max tool calls per episode (generous budget — not the bottleneck)
+QUERY_BUDGET = 500  # Max tool calls per episode (generous — investigation is the bottleneck, not budget)
 
 
 class ComplianceAuditorEnvironment(Environment):
